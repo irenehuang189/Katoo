@@ -14,3 +14,8 @@
 Route::get('/', function () {
     return view('welcome');
 });
+
+Route::get('/popular/{pageNum}', 'MovieController@getPopular');
+Route::get('/upcoming/{pageNum}', 'MovieController@getUpcoming');
+Route::get('/movie/{movieId}', 'MovieController@getDetails');
+Route::get('/movie/{movieId}/reviews', 'MovieController@getReviews');
