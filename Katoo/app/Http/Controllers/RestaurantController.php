@@ -47,6 +47,17 @@ class RestaurantController extends Controller
         return response()->json(["menu_url" => $restaurant->menu_url]);
     }
 
+    public function getReviews($id) {
+        $response = $this->get($id);
+        if ($response->status() != 200) {
+            return response($response->getContent(), $response->status());
+        }
+
+        $response = $this->client->request('GET', 'https://developers.zomato.com/api/v2.1/reviews?res_id=' . $id, $this->defaultOption);
+        $responseBody = json_decode($response->getBody());
+        return response()->json(["user_reviews" => $responseBody->user_reviews]);
+    }
+
     public function getNearby(Request $request) {
         $lat = $request->query('lat');
         $long = $request->query('long');
@@ -56,7 +67,7 @@ class RestaurantController extends Controller
 
         $response = $this->client->request('GET', 'https://developers.zomato.com/api/v2.1/geocode?lat=' . $lat . '&lon=' . $long, $this->defaultOption);
         $responseBody = json_decode($response->getBody());
-    	return response()->json($responseBody->nearby_restaurants);
+    	return response()->json(["nearby_restaurants" => $responseBody->nearby_restaurants]);
     }
 
     public function getByLocationQuery(Request $request) {
@@ -72,7 +83,7 @@ class RestaurantController extends Controller
 
         $location = json_decode($response->getContent());
         $restaurants = $this->getByLocation($location->entity_id, $location->entity_type);
-        return response()->json($restaurants);
+        return response()->json(["restaurants" => $restaurants]);
     }
 
     private function getLocation($query) {
