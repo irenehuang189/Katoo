@@ -19,9 +19,22 @@ class RestaurantController extends Controller
         $responseBody = json_decode($response->getBody());
         if ($responseBody->R->res_id > 0) {
             return response()->json($responseBody);
-        } else {
-            return response('Invalid restaurant ID', 400);
         }
+        return response('Invalid restaurant ID', 400);
+    }
+
+    public function getRating($id) {
+        $response = $this->get($id);
+        if ($response->status() != 200) {
+            return response($response->getContent(), $response->status());
+        }
+
+        $restaurant = json_decode($response->getContent());
+        $user_rating = $restaurant->user_rating;
+        if ($user_rating->rating_text == "Not rated") {
+            return response($user_rating->rating_text, 400);
+        }
+        return response()->json(["aggregate_rating" => $user_rating->aggregate_rating]);
     }
 
     public function getMenu($id) {
@@ -31,7 +44,7 @@ class RestaurantController extends Controller
         }
 
         $restaurant = json_decode($response->getContent());
-        return response()->json($restaurant->menu_url);
+        return response()->json(["menu_url" => $restaurant->menu_url]);
     }
 
     public function getNearby(Request $request) {
@@ -68,9 +81,8 @@ class RestaurantController extends Controller
         $locations = $responseBody->location_suggestions;
         if ($locations) {
             return response()->json($locations[0]);
-        } else {
-            return response('Location not found', 400);
         }
+        return response('Location not found', 400);
     }
 
     private function getByLocation($locationId, $locationType) {
