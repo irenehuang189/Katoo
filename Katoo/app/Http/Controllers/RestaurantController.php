@@ -27,8 +27,8 @@ class RestaurantController extends Controller
     	return response()->json($restaurants);
     }
 
-    private function getLocation($query) {
-        $response = $this->client->request('GET', 'https://developers.zomato.com/api/v2.1/locations?query=' . $query, $this->defaultOption);
+    private function getLocation($keyword) {
+        $response = $this->client->request('GET', 'https://developers.zomato.com/api/v2.1/locations?query=' . $keyword, $this->defaultOption);
         $responseBody = json_decode($response->getBody());
         $locations = $responseBody->location_suggestions;
         if ($locations) {
@@ -36,5 +36,12 @@ class RestaurantController extends Controller
         } else {
             return response('', 400);
         }
+    }
+
+    private function getByLocation($locationId, $locationType) {
+        $response = $this->client->request('GET', 'https://developers.zomato.com/api/v2.1/search?entity_id=' . $locationId . '&entity_type=' . $locationType, $this->defaultOption);
+        $responseBody = json_decode($response->getBody());
+        $restaurants = $responseBody->restaurants;
+        return response()->json($restaurants);
     }
 }
