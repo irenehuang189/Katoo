@@ -14,6 +14,16 @@ class RestaurantController extends Controller
     	$this->defaultOption = ['verify' => false];
     }
 
+    public function get($id) {
+        $response = $this->client->request('GET', 'https://developers.zomato.com/api/v2.1/restaurant?res_id=' . $id, $this->defaultOption);
+        $responseBody = json_decode($response->getBody());
+        if ($responseBody->R->res_id > 0) {
+            return response()->json($responseBody);
+        } else {
+            return response('Invalid restaurant ID', 400);
+        }
+    }
+
     public function getNearby(Request $request) {
         $lat = $request->query('lat');
         $long = $request->query('long');
