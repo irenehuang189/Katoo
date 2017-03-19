@@ -21,3 +21,4 @@ Route::get('/movie/{movieId}', 'MovieController@getDetails');
 Route::get('/movie/{movieId}/reviews', 'MovieController@getReviews');
 
 Route::get('/restaurant/nearby', 'RestaurantController@getNearby');
+Route::get('/restaurant/location', 'RestaurantController@getByLocationQuery');
