@@ -24,6 +24,17 @@ class RestaurantController extends Controller
         $response = $this->client->request('GET', 'https://developers.zomato.com/api/v2.1/geocode?lat=' . $lat . '&lon=' . $long, $this->defaultOption);
         $responseBody = json_decode($response->getBody());
         $restaurants = $responseBody->nearby_restaurants;
-    	return $restaurants;
+    	return response()->json($restaurants);
+    }
+
+    private function getLocation($query) {
+        $response = $this->client->request('GET', 'https://developers.zomato.com/api/v2.1/locations?query=' . $query, $this->defaultOption);
+        $responseBody = json_decode($response->getBody());
+        $locations = $responseBody->location_suggestions;
+        if ($locations) {
+            return response()->json($locations[0]);
+        } else {
+            return response('', 400);
+        }
     }
 }
