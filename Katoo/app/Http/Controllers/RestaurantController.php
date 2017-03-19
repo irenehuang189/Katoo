@@ -24,6 +24,16 @@ class RestaurantController extends Controller
         }
     }
 
+    public function getMenu($id) {
+        $response = $this->get($id);
+        if ($response->status() != 200) {
+            return response($response->getContent(), $response->status());
+        }
+
+        $restaurant = json_decode($response->getContent());
+        return response()->json($restaurant->menu_url);
+    }
+
     public function getNearby(Request $request) {
         $lat = $request->query('lat');
         $long = $request->query('long');
