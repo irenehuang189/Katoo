@@ -9,6 +9,7 @@
         "guzzlehttp/guzzle": "^6.2",
         "laravel/framework": "5.4.*",
         "laravel/tinker": "~1.0",
+        "linecorp/line-bot-sdk": "^1.5",
         "php-tmdb/laravel": "~1.0",
         "symfony/psr-http-message-bridge": "^1.0"
     },
