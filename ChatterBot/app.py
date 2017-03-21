@@ -1,8 +1,13 @@
 from flask import json
 from flask import Flask, url_for
+from chatterBot import chatterBot
+
 app = Flask(__name__)
 
-message = 'apa kabar?'
+# cb = chatterBot()
+# cb.get_response("apa kabar?")
+# message = cb.response
+# print message
 
 @app.route('/post_message', methods = ['POST'])
 def api_post():
@@ -16,7 +21,10 @@ def api_post():
 
 @app.route('/get_message', methods = ['GET'])
 def api_get():
-    return message
+	cb = chatterBot()
+	cb.get_response("apa kabar?")
+	message = cb.response
+	return message
     
 if __name__ == '__main__':
     app.run()
