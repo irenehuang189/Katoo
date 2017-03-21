@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use GuzzleHttp\Client;
 use Tmdb\Laravel\TmdbServiceProvider;
 use Tmdb\Laravel\Facades\Tmdb;
+use Illuminate\Support\Facades\DB;
 
 class MovieController extends Controller
 {
@@ -19,17 +20,43 @@ class MovieController extends Controller
     }
 
     public function getPopular($pageNum) {
-        $response = $this->repository->getPopular(array('page' => $pageNum));
-        foreach($response->toArray() as $movie) {
-            print_r($movie);
+        $response = $this->repository->getPopular(['page' => $pageNum]);
+        $movies = [];
+        foreach($response->toArray() as $movieResponse) {
+            $genres = [];
+            foreach($movieResponse->getGenres() as $genreResponse) {
+                array_push($genres, $this->getGenreName($genreResponse->getId()));
+            }
+            $movie = [
+                'id' => $movieResponse->getId(),
+                'title' => $movieResponse->getTitle(),
+                'poster_path' => env('TMDB_IMG_BASE_URL', 'localhost') . $movieResponse->getPosterPath(),
+                'genre' => $genres,
+                'tmdb_vote' => $movieResponse->getVoteAverage()
+            ];
+            array_push($movies, $movie);
         }
+        return response()->json($movies);
     }
 
     public function getUpcoming($pageNum) {
-        $response = $this->repository->getUpcoming(array('page' => $pageNum));
-        foreach($response->toArray() as $movie) {
-            print_r($movie);
+        $response = $this->repository->getUpcoming(['page' => $pageNum]);
+        $movies = [];
+        foreach($response->toArray() as $movieResponse) {
+            $genres = [];
+            foreach($movieResponse->getGenres() as $genreResponse) {
+                array_push($genres, $this->getGenreName($genreResponse->getId()));
+            }
+            $movie = [
+                'id' => $movieResponse->getId(),
+                'title' => $movieResponse->getTitle(),
+                'poster_path' => env('TMDB_IMG_BASE_URL', 'localhost') . $movieResponse->getPosterPath(),
+                'genre' => $genres,
+                'tmdb_vote' => $movieResponse->getVoteAverage()
+            ];
+            array_push($movies, $movie);
         }
+        return response()->json($movies);
     }
 
     /* $movieId: imdb id. Return name, type, duration, synopsis, imdb rating, rotten tomatoes rating, and movie url */
@@ -49,5 +76,17 @@ class MovieController extends Controller
         foreach($response->toArray() as $review) {
             print_r($review);
         }
+    }
+
+    // Helper
+    public function getGenreList() {
+        $response = $this->client->getGenresApi()->getMovieGenres();
+        DB::table('movie_genre')->insert($response['genres']);
+        return $response['genres'];
+    }
+
+    public function getGenreName($id) {
+        $genre = DB::table('movie_genre')->find($id);
+        return $genre->name;
     }
 }
