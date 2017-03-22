@@ -4,19 +4,17 @@ from chatterbot import ChatBot
 
 chatterbot = ChatBot("Training Example")
 
-class chatterBot:
+class ChatterBot:
 	def __init__(self):
-		self.response = ''
 		chatterbot.set_trainer(ChatterBotCorpusTrainer)
 
 		chatterbot.train(
 		   "chatterbot.corpus.indonesia"
 		)
 
-	def get_response(self, request):
-		self.response = chatterbot.get_response(request)
+	def get_reply(self, message):
+		return chatterbot.get_response(message)
 
-
-# cb = ChatterBot()
-# cb.get_response("apa kabar?")
-# print cb.response
+if __name__ == '__main__':
+	cb = ChatterBot()
+	print cb.get_reply("apa kabar?")
