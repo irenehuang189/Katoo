@@ -15,10 +15,27 @@ class RestaurantController extends Controller
     }
 
     public function get($id) {
-        $response = $this->client->request('GET', 'https://developers.zomato.com/api/v2.1/restaurant?res_id=' . $id, $this->defaultOption);
-        $responseBody = json_decode($response->getBody());
-        if ($responseBody->R->res_id > 0) {
-            return response()->json($responseBody);
+        $zomatoResponse = $this->client->request('GET', 'https://developers.zomato.com/api/v2.1/restaurant?res_id=' . $id, $this->defaultOption);
+        $zomatoResponseBody = json_decode($zomatoResponse->getBody());
+        if ($zomatoResponseBody->R->res_id > 0) {
+            if ($zomatoResponseBody->user_rating->rating_text == "Not rated") {
+                $aggregate_rating = $zomatoResponseBody->user_rating->rating_text;
+            } else {
+                $aggregate_rating = $zomatoResponseBody->user_rating->aggregate_rating;
+            }
+
+            $response = [
+                'id' => $id,
+                'name' => $zomatoResponseBody->name,
+                'url' => $zomatoResponseBody->url,
+                'address' => $zomatoResponseBody->location->address,
+                'latitude' => $zomatoResponseBody->location->latitude,
+                'longitude' => $zomatoResponseBody->location->longitude,
+                'aggregate_rating' => $aggregate_rating,
+                'menu_url' => $zomatoResponseBody->menu_url,
+                'featured_image' => $zomatoResponseBody->featured_image
+            ];
+            return response()->json($response);
         }
         return response('Invalid restaurant ID', 400);
     }
@@ -30,11 +47,7 @@ class RestaurantController extends Controller
         }
 
         $restaurant = json_decode($response->getContent());
-        $user_rating = $restaurant->user_rating;
-        if ($user_rating->rating_text == "Not rated") {
-            return response($user_rating->rating_text, 400);
-        }
-        return response()->json(["aggregate_rating" => $user_rating->aggregate_rating]);
+        return response()->json(["aggregate_rating" => $restaurant->aggregate_rating]);
     }
 
     public function getMenu($id) {
