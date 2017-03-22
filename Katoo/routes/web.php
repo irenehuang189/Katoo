@@ -11,9 +11,7 @@
 |
 */
 
-Route::get('/', function () {
-    return view('welcome');
-});
+Route::get('/', 'LINEController@index');
 
 Route::get('/movie/popular/{pageNum}', 'MovieController@getPopular');
 Route::get('/movie/upcoming/{pageNum}', 'MovieController@getUpcoming');

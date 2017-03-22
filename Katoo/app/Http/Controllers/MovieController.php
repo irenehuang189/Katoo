@@ -59,7 +59,6 @@ class MovieController extends Controller
         return response()->json($movies);
     }
 
-    /* $movieId: imdb id. Return name, type, duration, synopsis, imdb rating, rotten tomatoes rating, and movie url */
     public function getDetails($movieId) {
         $tmdbResponse = $this->client->getMoviesApi()->getMovie($movieId);
         // print_r($tmdbResponse);
