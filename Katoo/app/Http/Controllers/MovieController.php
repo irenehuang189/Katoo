@@ -28,11 +28,11 @@ class MovieController extends Controller
                 array_push($genres, $this->getGenreName($genreResponse->getId()));
             }
             $movie = [
-                'id' => $movieResponse->getId(),
-                'title' => $movieResponse->getTitle(),
-                'poster_path' => env('TMDB_IMG_BASE_URL', 'localhost') . $movieResponse->getPosterPath(),
-                'genre' => $genres,
-                'tmdb_vote' => $movieResponse->getVoteAverage()
+                'tmdb_id'       => $movieResponse->getId(),
+                'title'         => $movieResponse->getTitle(),
+                'poster_path'   => env('TMDB_IMG_BASE_URL', 'localhost') . $movieResponse->getPosterPath(),
+                'genre'         => $genres,
+                'tmdb_rating'     => $movieResponse->getVoteAverage()
             ];
             array_push($movies, $movie);
         }
@@ -48,11 +48,11 @@ class MovieController extends Controller
                 array_push($genres, $this->getGenreName($genreResponse->getId()));
             }
             $movie = [
-                'id' => $movieResponse->getId(),
-                'title' => $movieResponse->getTitle(),
-                'poster_path' => env('TMDB_IMG_BASE_URL', 'localhost') . $movieResponse->getPosterPath(),
-                'genre' => $genres,
-                'tmdb_vote' => $movieResponse->getVoteAverage()
+                'tmdb_id'       => $movieResponse->getId(),
+                'title'         => $movieResponse->getTitle(),
+                'poster_path'   => env('TMDB_IMG_BASE_URL', 'localhost') . $movieResponse->getPosterPath(),
+                'genre'         => $genres,
+                'tmdb_rating'     => $movieResponse->getVoteAverage()
             ];
             array_push($movies, $movie);
         }
@@ -61,21 +61,44 @@ class MovieController extends Controller
 
     /* $movieId: imdb id. Return name, type, duration, synopsis, imdb rating, rotten tomatoes rating, and movie url */
     public function getDetails($movieId) {
+        $tmdbResponse = $this->client->getMoviesApi()->getMovie($movieId);
+        // print_r($tmdbResponse);
+        // die;
+
         $client = new Client(['base_uri' => 'http://www.omdbapi.com']);
-        $response = $client->get('', [
-                'query' => ['i' => $movieId,
+        $imdbResponse = $client->get('', [
+                'query' => ['i' => $tmdbResponse['imdb_id'],
                             'tomatoes' => 'true'
                             ]
             ])->getBody();
-        $details = json_decode($response);
-        print_r($details); // How to access: $details->Title
+        $detailsResponse = json_decode($imdbResponse);
+        $details = [
+            'tmdb_id'       => $tmdbResponse['id'],
+            'imdb_id'       => $tmdbResponse['imdb_id'],
+            'title'         => $detailsResponse->Title,
+            'genre'         => $detailsResponse->Genre,
+            'duration'      => $detailsResponse->Runtime,
+            'poster_path'   => $detailsResponse->Poster,
+            'plot'          => $detailsResponse->Plot,
+            'imdb_rating'   => $detailsResponse->imdbVotes,
+            'url'           => env('IMDB_BASE_URL', 'localhost') . $tmdbResponse['imdb_id'],
+            // 'tmdb_url'     => $tmdbResponse['tmdb_vote']
+        ];
+        return response()->json($details);
     }
 
     public function getReviews($movieId) {
         $response = $this->repository->getReviews($movieId);
-        foreach($response->toArray() as $review) {
-            print_r($review);
+        $reviews = [];
+        foreach($response->toArray() as $reviewResponse) {
+            $review = [
+                'id'        => $reviewResponse->getId(),
+                'content'   => $reviewResponse->getContent(),
+                'url'       => $reviewResponse->getUrl()
+            ];
+            array_push($reviews, $review);
         }
+        return response()->json($reviews);
     }
 
     // Helper
