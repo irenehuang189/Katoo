@@ -65,7 +65,7 @@ class MovieController extends Controller
         // print_r($tmdbResponse);
         // die;
 
-        $client = new Client(['base_uri' => 'http://www.omdbapi.com']);
+        $client = new Client(['base_uri' => 'http://www.omdbapi.com'], ['verify' => false]);
         $imdbResponse = $client->get('', [
                 'query' => ['i' => $tmdbResponse['imdb_id'],
                             'tomatoes' => 'true'
