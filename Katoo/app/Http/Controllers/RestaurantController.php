@@ -87,9 +87,30 @@ class RestaurantController extends Controller
             return response('No latitude or longitude', 400);
         }
 
-        $response = $this->client->request('GET', 'https://developers.zomato.com/api/v2.1/geocode?lat=' . $lat . '&lon=' . $long, $this->defaultOption);
-        $responseBody = json_decode($response->getBody());
-    	return response()->json(["nearby_restaurants" => $responseBody->nearby_restaurants]);
+        $zomatoResponse = $this->client->request('GET', 'https://developers.zomato.com/api/v2.1/geocode?lat=' . $lat . '&lon=' . $long, $this->defaultOption);
+        $zomatoResponseBody = json_decode($zomatoResponse->getBody());
+        $restaurants = [];
+        foreach ($zomatoResponseBody->nearby_restaurants as $nearby_restaurant) {
+            if ($nearby_restaurant->restaurant->user_rating->rating_text == "Not rated") {
+                $aggregate_rating = $nearby_restaurant->restaurant->user_rating->rating_text;
+            } else {
+                $aggregate_rating = $nearby_restaurant->restaurant->user_rating->aggregate_rating;
+            }
+
+            $restaurant = [
+                'id' => $nearby_restaurant->restaurant->R->res_id,
+                'name' => $nearby_restaurant->restaurant->name,
+                'url' => $nearby_restaurant->restaurant->url,
+                'address' => $nearby_restaurant->restaurant->location->address,
+                'latitude' => $nearby_restaurant->restaurant->location->latitude,
+                'longitude' => $nearby_restaurant->restaurant->location->longitude,
+                'aggregate_rating' => $aggregate_rating,
+                'menu_url' => $nearby_restaurant->restaurant->menu_url,
+                'featured_image' => $nearby_restaurant->restaurant->featured_image
+            ];
+            $restaurants[] = $restaurant;
+        }
+    	return response()->json(["nearby_restaurants" => $restaurants]);
     }
 
     public function getByLocationQuery(Request $request) {
