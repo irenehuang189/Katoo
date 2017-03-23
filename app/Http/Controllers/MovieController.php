@@ -16,7 +16,6 @@ class MovieController extends Controller
     public function __construct() {
         $token = new \Tmdb\ApiToken(env('TMDB_API_KEY', 'localhost'));
         $this->client = new \Tmdb\Client($token);
-        $this->defaultOption = ['verify' => false];
         $this->repository = new \Tmdb\Repository\MovieRepository($this->client);
     }
 
@@ -70,7 +69,8 @@ class MovieController extends Controller
         $imdbResponse = $client->get('', [
                 'query' => ['i' => $tmdbResponse['imdb_id'],
                             'tomatoes' => 'true'
-                            ]
+                            ],
+                'verify' => false
             ])->getBody();
         $detailsResponse = json_decode($imdbResponse);
         $details = [
