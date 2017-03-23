@@ -61,14 +61,23 @@ class RestaurantController extends Controller
     }
 
     public function getReviews($id) {
-        $response = $this->get($id);
-        if ($response->status() != 200) {
-            return response($response->getContent(), $response->status());
+        $restaurantResponse = $this->get($id);
+        if ($restaurantResponse->status() != 200) {
+            return response($restaurantResponse->getContent(), $restaurantResponse->status());
         }
 
-        $response = $this->client->request('GET', 'https://developers.zomato.com/api/v2.1/reviews?res_id=' . $id, $this->defaultOption);
-        $responseBody = json_decode($response->getBody());
-        return response()->json(["user_reviews" => $responseBody->user_reviews]);
+        $zomatoResponse = $this->client->request('GET', 'https://developers.zomato.com/api/v2.1/reviews?res_id=' . $id, $this->defaultOption);
+        $zomatoResponseBody = json_decode($zomatoResponse->getBody());
+        $reviews = [];
+        foreach ($zomatoResponseBody->user_reviews as $zomatoReview) {
+            $review = [
+                'rating' => $zomatoReview->review->rating,
+                'review_text' => $zomatoReview->review->review_text
+            ];
+            $reviews[] = $review;
+        }
+
+        return response()->json(["user_reviews" => $reviews]);
     }
 
     public function getNearby(Request $request) {
