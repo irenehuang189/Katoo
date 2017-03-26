@@ -7,11 +7,19 @@ use LINE\LINEBot;
 use LINE\LINEBot\Constant\HTTPHeader;
 use LINE\LINEBot\Event\MessageEvent;
 use LINE\LINEBot\Event\MessageEvent\TextMessage;
+use LINE\LINEBot\Event\PostbackEvent;
 use LINE\LINEBot\Exception\InvalidEventRequestException;
 use LINE\LINEBot\Exception\InvalidSignatureException;
 use LINE\LINEBot\Exception\UnknownEventTypeException;
 use LINE\LINEBot\Exception\UnknownMessageTypeException;
 use LINE\LINEBot\HTTPClient\CurlHTTPClient;
+use LINE\LINEBot\MessageBuilder;
+use LINE\LINEBot\MessageBuilder\TemplateBuilder\ButtonTemplateBuilder;
+use LINE\LINEBot\MessageBuilder\LocationMessageBuilder;
+use LINE\LINEBot\MessageBuilder\TemplateMessageBuilder;
+use LINE\LINEBot\MessageBuilder\TextMessageBuilder;
+use LINE\LINEBot\TemplateActionBuilder\PostbackTemplateActionBuilder;
+use LINE\LINEBot\TemplateActionBuilder\UriTemplateActionBuilder;
 
 class LINEController extends Controller
 {
@@ -43,18 +51,26 @@ class LINEController extends Controller
         }
 
         foreach ($events as $event) {
-            if (!($event instanceof MessageEvent)) {
-                echo ('Non message event has come');
-                continue;
+            $sourceId = $event->getEventSourceId();
+            $message = "";
+
+            if ($event instanceof MessageEvent) {
+                if ($event instanceof TextMessage) {
+                    $replyText = $event->getText();
+                    $message = new TextMessageBuilder($replyText);
+                }
+            } else if ($event instanceof PostbackEvent) {
+                parse_str($event->getPostbackData(), $query);
+                $locationKeys = ['lat', 'long', 'name', 'address'];
+
+                if (count(array_intersect_key(array_flip($locationKeys), $query)) === count($locationKeys)) {
+                    $message = $this->getLocation($query['lat'], $query['long'], $query['name'], $query['address']);
+                }
             }
 
-            if (!($event instanceof TextMessage)) {
-                echo ('Non text message has come');
-                continue;
+            if ($message instanceof MessageBuilder) {
+                $bot->pushMessage($sourceId, $message);
             }
-
-            $replyText = $event->getText();
-            $resp = $bot->replyText($event->getReplyToken(), $replyText);
         }
 
         return ('OK');
@@ -62,5 +78,58 @@ class LINEController extends Controller
 
     public function getPopular() {
 
+    }
+
+    /* Restaurant */
+    private function getRestaurant($id) {
+        $restaurantController = new RestaurantController;
+        $response = $restaurantController->get($id);
+        if ($response->status() != 200) {
+            return response($response->getContent(), $response->status());
+        }
+        $restaurant = json_decode($response->getContent());
+
+        $templateActionBuilders = [
+            new PostbackTemplateActionBuilder(
+                'Location',
+                'name=' . $restaurant->name . '&address=' . $restaurant->address . '&lat=' . $restaurant->latitude . '&long=' . $restaurant->longitude
+            ),
+            new UriTemplateActionBuilder('Menu', $restaurant->menu_url),
+            new UriTemplateActionBuilder('View in Zomato', $restaurant->url)
+        ];
+
+        $aggregateRating = $restaurant->aggregate_rating;
+        if ($restaurant->aggregate_rating != 'Not rated') {
+            $aggregateRating .= '/5';
+        }
+        $name = $restaurant->name;
+        if (strlen($name) > 40) {
+            $name = substr($name, 0, 37) . '...';
+        }
+        $address = $restaurant->address;
+        $addressMaxLength = 60 - strlen($aggregateRating . "\n");
+        if (strlen($address) > $addressMaxLength) {
+            $address = substr($address, 0, $addressMaxLength - 3) . '...';
+        }
+
+        $buttonTemplateBuilder = new ButtonTemplateBuilder(
+            $name,
+            $aggregateRating . "\n" . $address,
+            $restaurant->featured_image,
+            $templateActionBuilders
+        );
+
+        $templateMessageBuilder = new TemplateMessageBuilder($restaurant->name, $buttonTemplateBuilder);
+        return $templateMessageBuilder;
+    }
+
+    private function getLocation($lat, $long, $name, $address) {
+        $locationMessageBuilder = new LocationMessageBuilder(
+            $name,
+            $address,
+            $lat,
+            $long
+        );
+        return $locationMessageBuilder;
     }
 }
