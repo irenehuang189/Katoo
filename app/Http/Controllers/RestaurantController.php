@@ -111,8 +111,7 @@ class RestaurantController extends Controller
     	return response()->json(["nearby_restaurants" => $restaurants]);
     }
 
-    public function getByLocationQuery(Request $request) {
-        $query = $request->query('query');
+    public function getByLocationQuery($query) {
         if (!$query) {
             return response('No location query', 400);
         }
