@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use LINE\LINEBot;
 use LINE\LINEBot\Constant\HTTPHeader;
 use LINE\LINEBot\Event\MessageEvent;
+use LINE\LINEBot\Event\MessageEvent\LocationMessage;
 use LINE\LINEBot\Event\MessageEvent\TextMessage;
 use LINE\LINEBot\Event\PostbackEvent;
 use LINE\LINEBot\Exception\InvalidEventRequestException;
@@ -14,10 +15,10 @@ use LINE\LINEBot\Exception\UnknownEventTypeException;
 use LINE\LINEBot\Exception\UnknownMessageTypeException;
 use LINE\LINEBot\HTTPClient\CurlHTTPClient;
 use LINE\LINEBot\MessageBuilder;
+use LINE\LINEBot\MessageBuilder\LocationMessageBuilder;
+use LINE\LINEBot\MessageBuilder\TemplateBuilder\ButtonTemplateBuilder;
 use LINE\LINEBot\MessageBuilder\TemplateBuilder\CarouselColumnTemplateBuilder;
 use LINE\LINEBot\MessageBuilder\TemplateBuilder\CarouselTemplateBuilder;
-use LINE\LINEBot\MessageBuilder\TemplateBuilder\ButtonTemplateBuilder;
-use LINE\LINEBot\MessageBuilder\LocationMessageBuilder;
 use LINE\LINEBot\MessageBuilder\TemplateMessageBuilder;
 use LINE\LINEBot\MessageBuilder\TextMessageBuilder;
 use LINE\LINEBot\TemplateActionBuilder\PostbackTemplateActionBuilder;
@@ -58,11 +59,12 @@ class LINEController extends Controller
             $message = "";
 
             if ($event instanceof MessageEvent) {
-                $message = $this->getMovieReviews();
-                // if ($event instanceof TextMessage) {
-                //     $replyText = $event->getText();
-                //     $message = new TextMessageBuilder($replyText);
-                // }
+                if ($event instanceof TextMessage) {
+                    $replyText = $event->getText();
+                    $message = new TextMessageBuilder($replyText);
+                } else if ($event instanceof LocationMessage) {
+                    $message = $this->getNearbyRestaurants($event->getLatitude(), $event->getLongitude());
+                }
             } else if ($event instanceof PostbackEvent) {
                 parse_str($event->getPostbackData(), $query);
                 $locationKeys = ['lat', 'long', 'name', 'address'];
@@ -272,6 +274,108 @@ class LINEController extends Controller
         }
         $textMessageBuilder = new TextMessageBuilder($reviewsMessage);
         return $textMessageBuilder;
+    }
+
+    private function getNearbyRestaurants($lat, $long) {
+        $restaurantController = new RestaurantController;
+        $response = $restaurantController->getNearby($lat, $long);
+        if ($response->status() != 200) {
+            return $this->getErrorMessage();
+        }
+        $restaurants = json_decode($response->getContent());
+
+        $carouselColumnTemplateBuilders = [];
+        foreach ($restaurants->nearby_restaurants as $restaurant) {
+            $templateActionBuilders = [
+                new PostbackTemplateActionBuilder(
+                    'Lokasi',
+                    'name=' . $restaurant->name . '&address=' . $restaurant->address . '&lat=' . $restaurant->latitude . '&long=' . $restaurant->longitude
+                ),
+                new UriTemplateActionBuilder('Menu', $restaurant->menu_url),
+                new UriTemplateActionBuilder('Lihat di Zomato', $restaurant->url)
+            ];
+
+            $aggregateRating = $restaurant->aggregate_rating;
+            if ($restaurant->aggregate_rating != 'Not rated') {
+                $aggregateRating .= '/5';
+            }
+            $name = $restaurant->name;
+            if (strlen($name) > 40) {
+                $name = substr($name, 0, 37) . '...';
+            }
+            $address = $restaurant->address;
+            $addressMaxLength = 60 - strlen($aggregateRating . "\n");
+            if (strlen($address) > $addressMaxLength) {
+                $address = substr($address, 0, $addressMaxLength - 3) . '...';
+            }
+
+            $carouselColumnTemplateBuilder = new CarouselColumnTemplateBuilder(
+                $name,
+                $aggregateRating . "\n" . $address,
+                $restaurant->featured_image,
+                $templateActionBuilders
+            );
+
+            $carouselColumnTemplateBuilders[] = $carouselColumnTemplateBuilder;
+            if (sizeof($carouselColumnTemplateBuilders) == 5) {
+                break;
+            }
+        }
+
+        $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
+        $templateMessageBuilder = new TemplateMessageBuilder('Restoran Terdekat', $carouselTemplateBuilder);
+        return $templateMessageBuilder;
+    }
+
+    private function getRestaurantsByLocationQuery($query) {
+        $restaurantController = new RestaurantController;
+        $response = $restaurantController->getByLocationQuery($query);
+        if ($response->status() != 200) {
+            return $this->getErrorMessage();
+        }
+        $restaurants = json_decode($response->getContent());
+
+        $carouselColumnTemplateBuilders = [];
+        foreach ($restaurants->restaurants as $restaurant) {
+            $templateActionBuilders = [
+                new PostbackTemplateActionBuilder(
+                    'Lokasi',
+                    'name=' . $restaurant->name . '&address=' . $restaurant->address . '&lat=' . $restaurant->latitude . '&long=' . $restaurant->longitude
+                ),
+                new UriTemplateActionBuilder('Menu', $restaurant->menu_url),
+                new UriTemplateActionBuilder('Lihat di Zomato', $restaurant->url)
+            ];
+
+            $aggregateRating = $restaurant->aggregate_rating;
+            if ($restaurant->aggregate_rating != 'Not rated') {
+                $aggregateRating .= '/5';
+            }
+            $name = $restaurant->name;
+            if (strlen($name) > 40) {
+                $name = substr($name, 0, 37) . '...';
+            }
+            $address = $restaurant->address;
+            $addressMaxLength = 60 - strlen($aggregateRating . "\n");
+            if (strlen($address) > $addressMaxLength) {
+                $address = substr($address, 0, $addressMaxLength - 3) . '...';
+            }
+
+            $carouselColumnTemplateBuilder = new CarouselColumnTemplateBuilder(
+                $name,
+                $aggregateRating . "\n" . $address,
+                $restaurant->featured_image,
+                $templateActionBuilders
+            );
+
+            $carouselColumnTemplateBuilders[] = $carouselColumnTemplateBuilder;
+            if (sizeof($carouselColumnTemplateBuilders) == 5) {
+                break;
+            }
+        }
+
+        $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
+        $templateMessageBuilder = new TemplateMessageBuilder('Restoran di ' . $query, $carouselTemplateBuilder);
+        return $templateMessageBuilder;
     }
 
     private function getErrorMessage() {

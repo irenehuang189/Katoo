@@ -80,9 +80,7 @@ class RestaurantController extends Controller
         return response()->json(["user_reviews" => $reviews]);
     }
 
-    public function getNearby(Request $request) {
-        $lat = $request->query('lat');
-        $long = $request->query('long');
+    public function getNearby($lat, $long) {
         if (!$lat || !$long) {
             return response('No latitude or longitude', 400);
         }
@@ -113,8 +111,7 @@ class RestaurantController extends Controller
     	return response()->json(["nearby_restaurants" => $restaurants]);
     }
 
-    public function getByLocationQuery(Request $request) {
-        $query = $request->query('query');
+    public function getByLocationQuery($query) {
         if (!$query) {
             return response('No location query', 400);
         }
