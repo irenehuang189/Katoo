@@ -91,11 +91,11 @@ class LINEController extends Controller
 
         $templateActionBuilders = [
             new PostbackTemplateActionBuilder(
-                'Location',
+                'Lokasi',
                 'name=' . $restaurant->name . '&address=' . $restaurant->address . '&lat=' . $restaurant->latitude . '&long=' . $restaurant->longitude
             ),
             new UriTemplateActionBuilder('Menu', $restaurant->menu_url),
-            new UriTemplateActionBuilder('View in Zomato', $restaurant->url)
+            new UriTemplateActionBuilder('Lihat di Zomato', $restaurant->url)
         ];
 
         $aggregateRating = $restaurant->aggregate_rating;
@@ -158,6 +158,23 @@ class LINEController extends Controller
         $menu = json_decode($response->getContent());
 
         $textMessageBuilder = new TextMessageBuilder($menu->menu_url);
+        return $textMessageBuilder;
+    }
+
+    private function getRestaurantReviews($id) {
+        $restaurantController = new RestaurantController;
+        $response = $restaurantController->getReviews($id);
+        if ($response->status() != 200) {
+            return response($response->getContent(), $response->status());
+        }
+        $reviews = json_decode($response->getContent());
+
+        $reviewsMessage = '';
+        foreach ($reviews->user_reviews as $review) {
+            $reviewsMessage .= "\n\n" . $review->rating . '/5';
+            $reviewsMessage .= "\n" . $review->review_text;
+        }
+        $textMessageBuilder = new TextMessageBuilder($reviewsMessage);
         return $textMessageBuilder;
     }
 }
