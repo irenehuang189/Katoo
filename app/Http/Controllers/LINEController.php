@@ -133,7 +133,7 @@ class LINEController extends Controller
         return $locationMessageBuilder;
     }
 
-    private function getRating($id) {
+    private function getRestaurantRating($id) {
         $restaurantController = new RestaurantController;
         $response = $restaurantController->getRating($id);
         if ($response->status() != 200) {
@@ -146,6 +146,18 @@ class LINEController extends Controller
             $aggregateRating = $aggregateRating . '/5';
         }
         $textMessageBuilder = new TextMessageBuilder($aggregateRating);
+        return $textMessageBuilder;
+    }
+
+    private function getRestaurantMenu($id) {
+        $restaurantController = new RestaurantController;
+        $response = $restaurantController->getMenu($id);
+        if ($response->status() != 200) {
+            return response($response->getContent(), $response->status());
+        }
+        $menu = json_decode($response->getContent());
+
+        $textMessageBuilder = new TextMessageBuilder($menu->menu_url);
         return $textMessageBuilder;
     }
 }
