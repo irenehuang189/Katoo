@@ -59,7 +59,16 @@ class LINEController extends Controller
 
             if ($event instanceof MessageEvent) {
                 if ($event instanceof TextMessage) {
-                    $replyText = $event->getText();
+                    $text = $event->getText();
+                    if ($text == "Restoran terdekat") {
+                        $replyText = "Kirimkan lokasi Anda dengan fitur location LINE";
+                    } else if ($text == "Restoran di lokasi tertentu") {
+                        $replyText = "Ketikkan lokasi yang Anda inginkan";
+                    } else if ($text == "Restoran dengan nama tertentu") {
+                        $replyText = "Ketikkan nama restoran yang Anda inginkan";
+                    } else {
+                        $replyText = $text;
+                    }
                     $message = new TextMessageBuilder($replyText);
                 } else if ($event instanceof LocationMessage) {
                     $message = $this->getNearbyRestaurants($event->getLatitude(), $event->getLongitude());
