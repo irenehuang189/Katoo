@@ -12,6 +12,7 @@
 */
 
 Route::post('/', 'LINEController@index');
+Route::get('test', 'LINEController@test');
 
 Route::get('/movie/popular/{pageNum}', 'MovieController@getPopular');
 Route::get('/movie/upcoming/{pageNum}', 'MovieController@getUpcoming');

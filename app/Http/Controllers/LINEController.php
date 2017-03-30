@@ -14,6 +14,8 @@ use LINE\LINEBot\Exception\UnknownEventTypeException;
 use LINE\LINEBot\Exception\UnknownMessageTypeException;
 use LINE\LINEBot\HTTPClient\CurlHTTPClient;
 use LINE\LINEBot\MessageBuilder;
+use LINE\LINEBot\MessageBuilder\TemplateBuilder\CarouselColumnTemplateBuilder;
+use LINE\LINEBot\MessageBuilder\TemplateBuilder\CarouselTemplateBuilder;
 use LINE\LINEBot\MessageBuilder\TemplateBuilder\ButtonTemplateBuilder;
 use LINE\LINEBot\MessageBuilder\LocationMessageBuilder;
 use LINE\LINEBot\MessageBuilder\TemplateMessageBuilder;
@@ -55,10 +57,11 @@ class LINEController extends Controller
             $message = "";
 
             if ($event instanceof MessageEvent) {
-                if ($event instanceof TextMessage) {
-                    $replyText = $event->getText();
-                    $message = new TextMessageBuilder($replyText);
-                }
+                $message = $this->getPopularMovie();
+                // if ($event instanceof TextMessage) {
+                //     $replyText = $event->getText();
+                //     $message = new TextMessageBuilder($replyText);
+                // }
             } else if ($event instanceof PostbackEvent) {
                 parse_str($event->getPostbackData(), $query);
                 $locationKeys = ['lat', 'long', 'name', 'address'];
@@ -76,8 +79,34 @@ class LINEController extends Controller
         return ('OK');
     }
 
-    public function getPopular() {
+    public function test() {
+        $message = $this->getPopularMovie();
+        $this->bot->pushMessage('U4927259e833db2ea3b9b8881c00cb786', $message);
+    }
 
+    public function getPopularMovie() {
+        $movieController = new MovieController;
+        $response = $movieController->getPopular(1);
+        if($response->status() != 200) {
+            return $this->getErrorMessage();
+        }
+        $movies = json_decode($response->getContent());
+
+        $moviesTitle = [];
+        $moviesCarouselColumns = [];
+        foreach($movies as $movie) {
+            array_push($moviesTitle, $movie->title);
+            $genreText = 'Genre: ' . implode(', ', $movie->genre) . '\n';
+            $ratingText = 'TMDB Score: ' . $movie->tmdb_rating . '/10.0';
+            $text = $genreText . $ratingText;
+            $movieCarouselColumn = new CarouselColumnTemplateBuilder($movie->title, $text, $movie->poster_path, []);
+            array_push($moviesCarouselColumns, $movieCarouselColumn);
+        }
+
+        $moviesCarousel = new CarouselTemplateBuilder($moviesCarouselColumns);
+        $altText = implode(', ', $moviesTitle);
+        $moviesTemplateMessage = new TemplateMessageBuilder($altText, $moviesCarousel);
+        return $moviesTemplateMessage;
     }
 
     /* Restaurant */
@@ -85,7 +114,7 @@ class LINEController extends Controller
         $restaurantController = new RestaurantController;
         $response = $restaurantController->get($id);
         if ($response->status() != 200) {
-            return response($response->getContent(), $response->status());
+            return $this->getErrorMessage();
         }
         $restaurant = json_decode($response->getContent());
 
@@ -131,5 +160,10 @@ class LINEController extends Controller
             $long
         );
         return $locationMessageBuilder;
+    }
+
+    private function getErrorMessage() {
+        $errorMessageBuilder = new TextMessageBuilder('Mohon maaf Katoo sedang lelah, silahkan coba beberapa saat lagi :)');
+        return $errorMessageBuilder;
     }
 }
