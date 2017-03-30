@@ -22,6 +22,7 @@ use LINE\LINEBot\MessageBuilder\TemplateBuilder\CarouselTemplateBuilder;
 use LINE\LINEBot\MessageBuilder\TemplateMessageBuilder;
 use LINE\LINEBot\MessageBuilder\TextMessageBuilder;
 use LINE\LINEBot\TemplateActionBuilder\PostbackTemplateActionBuilder;
+use LINE\LINEBot\TemplateActionBuilder\MessageTemplateActionBuilder;
 use LINE\LINEBot\TemplateActionBuilder\UriTemplateActionBuilder;
 
 class LINEController extends Controller
@@ -91,13 +92,13 @@ class LINEController extends Controller
     }
 
     public function test() {
-        $message = $this->getErrorMessage();
+        $message = $this->getRestaurant(18387851);
         $this->bot->pushMessage('U4927259e833db2ea3b9b8881c00cb786', $message);
     }
 
-    public function getPopularMovie() {
+    public function getPopularMovies() {
         $movieController = new MovieController;
-        $response = $movieController->getPopular(1);
+        $response = $movieController->getPopular(1); // TODO: call stored page in redis
         if($response->status() != 200) {
             return $this->getErrorMessage();
         }
@@ -118,6 +119,72 @@ class LINEController extends Controller
         $altText = implode(', ', $moviesTitle);
         $moviesTemplateMessage = new TemplateMessageBuilder($altText, $moviesCarousel);
         return $moviesTemplateMessage;
+    }
+
+    public function getUpcomingMovies() {
+        $movieController = new MovieController;
+        $response = $movieController->getUpcoming(1); // TODO: call stored page in redis
+        if($response->status() != 200) {
+            return $this->getErrorMessage();
+        }
+        $movies = json_decode($response->getContent());
+
+        $moviesTitle = [];
+        $moviesCarouselColumns = [];
+        foreach($movies as $movie) {
+            array_push($moviesTitle, $movie->title);
+            $genreText = 'Genre: ' . implode(', ', $movie->genre) . '\n';
+            $ratingText = 'TMDB Score: ' . $movie->tmdb_rating . '/10.0';
+            $text = $genreText . $ratingText;
+            $movieCarouselColumn = new CarouselColumnTemplateBuilder($movie->title, $text, $movie->poster_path, []);
+            array_push($moviesCarouselColumns, $movieCarouselColumn);
+        }
+
+        $moviesCarousel = new CarouselTemplateBuilder($moviesCarouselColumns);
+        $altText = implode(', ', $moviesTitle);
+        $moviesTemplateMessage = new TemplateMessageBuilder($altText, $moviesCarousel);
+        return $moviesTemplateMessage;
+    }
+
+    public function getMovieDetails() {
+        $movieController = new MovieController;
+        $response = $movieController->getDetails(293167);
+        if($response->status() != 200) {
+            return $this->getErrorMessage();
+        }
+        $movie = json_decode($response->getContent());
+
+        // Button
+        $templateActionButton = [
+            new MessageTemplateActionBuilder('Lihat Sinopsis', $movie->plot),
+            new UriTemplateActionBuilder('Telusuri lebih lanjut', $movie->url)
+        ];
+
+        $text = [
+            'IMDB Score: ' . $movie->imdb_rating,
+            'Genre: ' . $movie->genre,
+            'Duration: ' . $movie->duration,
+        ];
+        $movieButtonTemplate = new ButtonTemplateBuilder($movie->title, implode('\n', $text), $movie->poster_path, $templateActionButton);
+
+        $altText = 'Rincian film ' . $movie->title;
+        $movieTemplateMessage = new TemplateMessageBuilder($altText, $movieButtonTemplate);
+        return $movieTemplateMessage;
+    }
+
+    public function getMovieReviews() {
+        $movieController = new MovieController;
+        $response = $movieController->getReviews(293167);
+        if($response->status() != 200) {
+            return $this->getErrorMessage();
+        }
+        $reviews = json_decode($response->getContent());
+
+        $text = [];
+        foreach($reviews as $review) {
+            array_push($text, $review->content . ' (' . $review->url. ')');
+        }
+        return new TextMessageBuilder(implode('\n\n', $text));
     }
 
     /* Restaurant */
