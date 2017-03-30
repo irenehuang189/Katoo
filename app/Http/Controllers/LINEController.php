@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use LINE\LINEBot;
 use LINE\LINEBot\Constant\HTTPHeader;
 use LINE\LINEBot\Event\MessageEvent;
+use LINE\LINEBot\Event\MessageEvent\LocationMessage;
 use LINE\LINEBot\Event\MessageEvent\TextMessage;
 use LINE\LINEBot\Event\PostbackEvent;
 use LINE\LINEBot\Exception\InvalidEventRequestException;
@@ -14,8 +15,10 @@ use LINE\LINEBot\Exception\UnknownEventTypeException;
 use LINE\LINEBot\Exception\UnknownMessageTypeException;
 use LINE\LINEBot\HTTPClient\CurlHTTPClient;
 use LINE\LINEBot\MessageBuilder;
-use LINE\LINEBot\MessageBuilder\TemplateBuilder\ButtonTemplateBuilder;
 use LINE\LINEBot\MessageBuilder\LocationMessageBuilder;
+use LINE\LINEBot\MessageBuilder\TemplateBuilder\ButtonTemplateBuilder;
+use LINE\LINEBot\MessageBuilder\TemplateBuilder\CarouselColumnTemplateBuilder;
+use LINE\LINEBot\MessageBuilder\TemplateBuilder\CarouselTemplateBuilder;
 use LINE\LINEBot\MessageBuilder\TemplateMessageBuilder;
 use LINE\LINEBot\MessageBuilder\TextMessageBuilder;
 use LINE\LINEBot\TemplateActionBuilder\PostbackTemplateActionBuilder;
@@ -58,6 +61,8 @@ class LINEController extends Controller
                 if ($event instanceof TextMessage) {
                     $replyText = $event->getText();
                     $message = new TextMessageBuilder($replyText);
+                } else if ($event instanceof LocationMessage) {
+                    $message = $this->getNearbyRestaurant($event->getLatitude(), $event->getLongitude());
                 }
             } else if ($event instanceof PostbackEvent) {
                 parse_str($event->getPostbackData(), $query);
@@ -176,5 +181,56 @@ class LINEController extends Controller
         }
         $textMessageBuilder = new TextMessageBuilder($reviewsMessage);
         return $textMessageBuilder;
+    }
+
+    private function getNearbyRestaurant($lat, $long) {
+        $restaurantController = new RestaurantController;
+        $response = $restaurantController->getNearby($lat, $long);
+        if ($response->status() != 200) {
+            return response($response->getContent(), $response->status());
+        }
+        $restaurants = json_decode($response->getContent());
+
+        $carouselColumnTemplateBuilders = [];
+        foreach ($restaurants->nearby_restaurants as $restaurant) {
+            $templateActionBuilders = [
+                new PostbackTemplateActionBuilder(
+                    'Lokasi',
+                    'name=' . $restaurant->name . '&address=' . $restaurant->address . '&lat=' . $restaurant->latitude . '&long=' . $restaurant->longitude
+                ),
+                new UriTemplateActionBuilder('Menu', $restaurant->menu_url),
+                new UriTemplateActionBuilder('Lihat di Zomato', $restaurant->url)
+            ];
+
+            $aggregateRating = $restaurant->aggregate_rating;
+            if ($restaurant->aggregate_rating != 'Not rated') {
+                $aggregateRating .= '/5';
+            }
+            $name = $restaurant->name;
+            if (strlen($name) > 40) {
+                $name = substr($name, 0, 37) . '...';
+            }
+            $address = $restaurant->address;
+            $addressMaxLength = 60 - strlen($aggregateRating . "\n");
+            if (strlen($address) > $addressMaxLength) {
+                $address = substr($address, 0, $addressMaxLength - 3) . '...';
+            }
+
+            $carouselColumnTemplateBuilder = new CarouselColumnTemplateBuilder(
+                $name,
+                $aggregateRating . "\n" . $address,
+                $restaurant->featured_image,
+                $templateActionBuilders
+            );
+
+            $carouselColumnTemplateBuilders[] = $carouselColumnTemplateBuilder;
+            if (sizeof($carouselColumnTemplateBuilders) == 5) {
+                break;
+            }
+        }
+
+        $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
+        $templateMessageBuilder = new TemplateMessageBuilder('Restaurant Terdekat', $carouselTemplateBuilder);
+        return $templateMessageBuilder;
     }
 }
