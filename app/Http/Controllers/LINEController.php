@@ -132,4 +132,20 @@ class LINEController extends Controller
         );
         return $locationMessageBuilder;
     }
+
+    private function getRating($id) {
+        $restaurantController = new RestaurantController;
+        $response = $restaurantController->getRating($id);
+        if ($response->status() != 200) {
+            return response($response->getContent(), $response->status());
+        }
+        $rating = json_decode($response->getContent());
+
+        $aggregateRating = $rating->aggregate_rating;
+        if ($aggregateRating != 'Not rated') {
+            $aggregateRating = $aggregateRating . '/5';
+        }
+        $textMessageBuilder = new TextMessageBuilder($aggregateRating);
+        return $textMessageBuilder;
+    }
 }
