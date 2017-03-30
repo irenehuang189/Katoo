@@ -57,11 +57,10 @@ class LINEController extends Controller
             $message = "";
 
             if ($event instanceof MessageEvent) {
-                $message = $this->getPopularMovie();
-                // if ($event instanceof TextMessage) {
-                //     $replyText = $event->getText();
-                //     $message = new TextMessageBuilder($replyText);
-                // }
+                if ($event instanceof TextMessage) {
+                    $replyText = $event->getText();
+                    $message = new TextMessageBuilder($replyText);
+                }
             } else if ($event instanceof PostbackEvent) {
                 parse_str($event->getPostbackData(), $query);
                 $locationKeys = ['lat', 'long', 'name', 'address'];
@@ -80,7 +79,7 @@ class LINEController extends Controller
     }
 
     public function test() {
-        $message = $this->getPopularMovie();
+        $message = $this->getErrorMessage();
         $this->bot->pushMessage('U4927259e833db2ea3b9b8881c00cb786', $message);
     }
 
@@ -120,11 +119,11 @@ class LINEController extends Controller
 
         $templateActionBuilders = [
             new PostbackTemplateActionBuilder(
-                'Location',
+                'Lokasi',
                 'name=' . $restaurant->name . '&address=' . $restaurant->address . '&lat=' . $restaurant->latitude . '&long=' . $restaurant->longitude
             ),
             new UriTemplateActionBuilder('Menu', $restaurant->menu_url),
-            new UriTemplateActionBuilder('View in Zomato', $restaurant->url)
+            new UriTemplateActionBuilder('Lihat di Zomato', $restaurant->url)
         ];
 
         $aggregateRating = $restaurant->aggregate_rating;
@@ -160,6 +159,51 @@ class LINEController extends Controller
             $long
         );
         return $locationMessageBuilder;
+    }
+
+    private function getRestaurantRating($id) {
+        $restaurantController = new RestaurantController;
+        $response = $restaurantController->getRating($id);
+        if ($response->status() != 200) {
+            return $this->getErrorMessage();
+        }
+        $rating = json_decode($response->getContent());
+
+        $aggregateRating = $rating->aggregate_rating;
+        if ($aggregateRating != 'Not rated') {
+            $aggregateRating = $aggregateRating . '/5';
+        }
+        $textMessageBuilder = new TextMessageBuilder($aggregateRating);
+        return $textMessageBuilder;
+    }
+
+    private function getRestaurantMenu($id) {
+        $restaurantController = new RestaurantController;
+        $response = $restaurantController->getMenu($id);
+        if ($response->status() != 200) {
+            return $this->getErrorMessage();
+        }
+        $menu = json_decode($response->getContent());
+
+        $textMessageBuilder = new TextMessageBuilder($menu->menu_url);
+        return $textMessageBuilder;
+    }
+
+    private function getRestaurantReviews($id) {
+        $restaurantController = new RestaurantController;
+        $response = $restaurantController->getReviews($id);
+        if ($response->status() != 200) {
+            return $this->getErrorMessage();
+        }
+        $reviews = json_decode($response->getContent());
+
+        $reviewsMessage = '';
+        foreach ($reviews->user_reviews as $review) {
+            $reviewsMessage .= "\n\n" . $review->rating . '/5';
+            $reviewsMessage .= "\n" . $review->review_text;
+        }
+        $textMessageBuilder = new TextMessageBuilder($reviewsMessage);
+        return $textMessageBuilder;
     }
 
     private function getErrorMessage() {
