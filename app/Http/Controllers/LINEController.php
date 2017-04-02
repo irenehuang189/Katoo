@@ -56,7 +56,7 @@ class LINEController extends Controller
 
         foreach ($events as $event) {
             $sourceId = $event->getEventSourceId();
-            $message = "";
+            $messages = [];
 
             if ($event instanceof MessageEvent) {
                 if ($event instanceof TextMessage) {
@@ -70,22 +70,22 @@ class LINEController extends Controller
                     } else {
                         $replyText = $text;
                     }
-                    $message = new TextMessageBuilder($replyText);
+                    $messages = [new TextMessageBuilder($replyText)];
                 } else if ($event instanceof LocationMessage) {
-                    $message = $this->getNearbyRestaurants($event->getLatitude(), $event->getLongitude());
+                    $messages = $this->getNearbyRestaurants($event->getLatitude(), $event->getLongitude());
                 }
             } else if ($event instanceof PostbackEvent) {
                 parse_str($event->getPostbackData(), $query);
                 if ($query['type'] == 'restaurant') {
                     if ($query['event'] == 'location') {
-                        $message = $this->getLocation($query['lat'], $query['long'], $query['name'], $query['address']);
+                        $messages = $this->getLocation($query['lat'], $query['long'], $query['name'], $query['address']);
                     } else if ($query['event'] == 'review') {
-                        $message = $this->getRestaurantReviews($query['id']);
+                        $messages = $this->getRestaurantReviews($query['id']);
                     }
                 }
             }
 
-            if ($message instanceof MessageBuilder) {
+            foreach ($messages as $message) {
                 $bot->pushMessage($sourceId, $message);
             }
         }
@@ -231,18 +231,18 @@ class LINEController extends Controller
             $templateActionBuilders
         );
 
-        $templateMessageBuilder = new TemplateMessageBuilder($restaurant->name, $buttonTemplateBuilder);
-        return $templateMessageBuilder;
+        $templateMessageBuilders = [new TemplateMessageBuilder($restaurant->name, $buttonTemplateBuilder)];
+        return $templateMessageBuilders;
     }
 
     private function getLocation($lat, $long, $name, $address) {
-        $locationMessageBuilder = new LocationMessageBuilder(
+        $locationMessageBuilders = [new LocationMessageBuilder(
             $name,
             $address,
             $lat,
             $long
-        );
-        return $locationMessageBuilder;
+        )];
+        return $locationMessageBuilders;
     }
 
     private function getRestaurantRating($id) {
@@ -257,8 +257,8 @@ class LINEController extends Controller
         if ($aggregateRating != 'Not rated') {
             $aggregateRating = $aggregateRating . '/5';
         }
-        $textMessageBuilder = new TextMessageBuilder($aggregateRating);
-        return $textMessageBuilder;
+        $textMessageBuilders = [new TextMessageBuilder($aggregateRating)];
+        return $textMessageBuilders;
     }
 
     private function getRestaurantMenu($id) {
@@ -269,8 +269,8 @@ class LINEController extends Controller
         }
         $menu = json_decode($response->getContent());
 
-        $textMessageBuilder = new TextMessageBuilder($menu->menu_url);
-        return $textMessageBuilder;
+        $textMessageBuilders = [new TextMessageBuilder($menu->menu_url)];
+        return $textMessageBuilders;
     }
 
     private function getRestaurantReviews($id) {
@@ -286,8 +286,8 @@ class LINEController extends Controller
             $reviewsMessage .= "\n\n" . $review->rating . '/5';
             $reviewsMessage .= "\n" . $review->review_text;
         }
-        $textMessageBuilder = new TextMessageBuilder($reviewsMessage);
-        return $textMessageBuilder;
+        $textMessageBuilders = [new TextMessageBuilder($reviewsMessage)];
+        return $textMessageBuilders;
     }
 
     private function getNearbyRestaurants($lat, $long) {
@@ -337,8 +337,8 @@ class LINEController extends Controller
         }
 
         $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
-        $templateMessageBuilder = new TemplateMessageBuilder('Restoran Terdekat', $carouselTemplateBuilder);
-        return $templateMessageBuilder;
+        $templateMessageBuilders = [new TemplateMessageBuilder('Restoran Terdekat', $carouselTemplateBuilder)];
+        return $templateMessageBuilders;
     }
 
     private function getRestaurantsByLocationQuery($query) {
@@ -388,12 +388,12 @@ class LINEController extends Controller
         }
 
         $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
-        $templateMessageBuilder = new TemplateMessageBuilder('Restoran di ' . $query, $carouselTemplateBuilder);
-        return $templateMessageBuilder;
+        $templateMessageBuilders = [new TemplateMessageBuilder('Restoran di ' . $query, $carouselTemplateBuilder)];
+        return $templateMessageBuilders;
     }
 
     private function getErrorMessage() {
-        $errorMessageBuilder = new TextMessageBuilder('Mohon maaf Katoo sedang lelah, silahkan coba beberapa saat lagi :)');
-        return $errorMessageBuilder;
+        $errorMessageBuilders = [new TextMessageBuilder('Mohon maaf Katoo sedang lelah, silahkan coba beberapa saat lagi :)')];
+        return $errorMessageBuilders;
     }
 }
