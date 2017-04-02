@@ -28,10 +28,12 @@ use LINE\LINEBot\TemplateActionBuilder\UriTemplateActionBuilder;
 class LINEController extends Controller
 {
     private $bot;
+    private $katooPythonClient;
 
     public function __construct() {
         $httpClient = new CurlHTTPClient(env('LINE_ACCESS_TOKEN', 'localhost'));
         $this->bot = new LINEBot($httpClient, ['channelSecret' => env('LINE_SECRET', 'localhost')]);
+        $this->katooPythonClient = new \GuzzleHttp\Client(['headers' => ['Content-Type' => 'application/json']]);
     }
     
     public function index(Request $req) {
@@ -68,13 +70,21 @@ class LINEController extends Controller
                     } else if (strtolower($text) == "cari film") {
                         $messages = [new TextMessageBuilder($text)];
                     } else if (strtolower($text) == "tampilkan restoran terdekat") {
-                        $messages = [new TextMessageBuilder($text)];
+                        $messages = [new TextMessageBuilder("Kirimkan lokasimu menggunakan fitur LINE location")];
                     } else if (strtolower($text) == "tampilkan restoran di suatu lokasi") {
-                        $messages = [new TextMessageBuilder($text)];
+                        $messages = [new TextMessageBuilder("Ketikkan nama lokasi yang diinginkan")];
                     } else if (strtolower($text) == "cari restoran") {
-                        $messages = [new TextMessageBuilder($text)];
+                        $messages = [new TextMessageBuilder("Ketikkan nama restoran yang ingin dicari")];
                     } else {
-                        $messages = [new TextMessageBuilder($text)];
+                        $katooPythonResponseBody = $this->getKatooPythonResponse($text);
+                        $katooPythonCode = $katooPythonResponseBody->reply->code;
+                        if ($katooPythonCode == 1) {
+                            $messages = [new TextMessageBuilder($text)];
+                        } else if ($katooPythonCode == 2) {
+                            $messages = [new TextMessageBuilder($text)];
+                        } else {
+                            $messages = [new TextMessageBuilder($text)];
+                        }
                     }
                 } else if ($event instanceof LocationMessage) {
                     $messages = $this->getNearbyRestaurants($event->getLatitude(), $event->getLongitude());
@@ -194,7 +204,6 @@ class LINEController extends Controller
         return new TextMessageBuilder(implode('\n\n', $text));
     }
 
-    /* Restaurant */
     private function getRestaurant($id) {
         $restaurantController = new RestaurantController;
         $response = $restaurantController->get($id);
@@ -414,6 +423,13 @@ class LINEController extends Controller
         $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
         $templateMessageBuilders = [new TemplateMessageBuilder('Restoran di ' . $query, $carouselTemplateBuilder)];
         return $templateMessageBuilders;
+    }
+
+    private function getKatooPythonResponse($text) {
+        $requestBody = ['message' => $text];
+        $response = $this->katooPythonClient->request('POST', 'https://katoo-python.herokuapp.com/get-reply', ['json' => $requestBody]);
+        $responseBody = json_decode($response->getBody());
+        return $responseBody;
     }
 
     private function getErrorMessage() {
