@@ -281,12 +281,13 @@ class LINEController extends Controller
         }
         $reviews = json_decode($response->getContent());
 
-        $reviewsMessage = '';
+        $textMessageBuilders = [];
         foreach ($reviews->user_reviews as $review) {
-            $reviewsMessage .= "\n\n" . $review->rating . '/5';
-            $reviewsMessage .= "\n" . $review->review_text;
+            $reviewMessage = $review->rating . '/5';
+            $reviewMessage .= "\n" . $review->review_text;
+            $textMessageBuilders[] = new TextMessageBuilder($reviewMessage);
         }
-        $textMessageBuilders = [new TextMessageBuilder($reviewsMessage)];
+
         return $textMessageBuilders;
     }
 
