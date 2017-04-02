@@ -311,7 +311,10 @@ class LINEController extends Controller
                     'name=' . $restaurant->name . '&address=' . $restaurant->address . '&lat=' . $restaurant->latitude . '&long=' . $restaurant->longitude
                 ),
                 new UriTemplateActionBuilder('Menu', $restaurant->menu_url),
-                new UriTemplateActionBuilder('Lihat di Zomato', $restaurant->url)
+                new PostbackTemplateActionBuilder(
+                    'Ulasan',
+                    'type=restaurant&event=review&id=' . $restaurant->id
+                )
             ];
 
             $aggregateRating = $restaurant->aggregate_rating;
@@ -366,7 +369,10 @@ class LINEController extends Controller
                     'name=' . $restaurant->name . '&address=' . $restaurant->address . '&lat=' . $restaurant->latitude . '&long=' . $restaurant->longitude
                 ),
                 new UriTemplateActionBuilder('Menu', $restaurant->menu_url),
-                new UriTemplateActionBuilder('Lihat di Zomato', $restaurant->url)
+                new PostbackTemplateActionBuilder(
+                    'Ulasan',
+                    'type=restaurant&event=review&id=' . $restaurant->id
+                )
             ];
 
             $aggregateRating = $restaurant->aggregate_rating;
