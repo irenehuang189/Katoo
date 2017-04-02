@@ -426,6 +426,64 @@ class LINEController extends Controller
         return $templateMessageBuilders;
     }
 
+    private function getRestaurantsByQuery($query) {
+        $restaurantController = new RestaurantController;
+        $response = $restaurantController->getByQuery($query);
+        if ($response->status() != 200) {
+            return $this->getErrorMessage();
+        }
+        $restaurants = json_decode($response->getContent());
+
+        $carouselColumnTemplateBuilders = [];
+        foreach ($restaurants->restaurants as $restaurant) {
+            $templateActionBuilders = [
+                new PostbackTemplateActionBuilder(
+                    'Lokasi',
+                    'name=' . $restaurant->name . '&address=' . $restaurant->address . '&lat=' . $restaurant->latitude . '&long=' . $restaurant->longitude
+                ),
+                new UriTemplateActionBuilder('Menu', $restaurant->menu_url),
+                new PostbackTemplateActionBuilder(
+                    'Ulasan',
+                    'type=restaurant&event=review&id=' . $restaurant->id
+                )
+            ];
+
+            $aggregateRating = $restaurant->aggregate_rating;
+            if ($restaurant->aggregate_rating != 'Not rated') {
+                $aggregateRating .= '/5';
+            }
+            $name = $restaurant->name;
+            if (strlen($name) > 40) {
+                $name = substr($name, 0, 37) . '...';
+            }
+            $address = $restaurant->address;
+            $addressMaxLength = 60 - strlen($aggregateRating . "\n");
+            if (strlen($address) > $addressMaxLength) {
+                $address = substr($address, 0, $addressMaxLength - 3) . '...';
+            }
+            $featuredImage = $restaurant->featured_image;
+            if ($featuredImage == "") {
+                $featuredImage = null;
+            }
+
+            $carouselColumnTemplateBuilder = new CarouselColumnTemplateBuilder(
+                $name,
+                $aggregateRating . "\n" . $address,
+                $featuredImage,
+                $templateActionBuilders
+            );
+
+            $carouselColumnTemplateBuilders[] = $carouselColumnTemplateBuilder;
+            if (sizeof($carouselColumnTemplateBuilders) == 5) {
+                break;
+            }
+        }
+
+        $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
+        $templateMessageBuilders = [new TemplateMessageBuilder('Restoran ' . $query, $carouselTemplateBuilder)];
+        return $templateMessageBuilders;
+    }
+
     private function getKatooPythonResponse($text) {
         $requestBody = ['message' => $text];
         $response = $this->katooPythonClient->request('POST', 'https://katoo-python.herokuapp.com/get-reply', ['json' => $requestBody]);
