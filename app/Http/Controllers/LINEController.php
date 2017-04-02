@@ -249,7 +249,7 @@ class LINEController extends Controller
         }
         $featuredImage = $restaurant->featured_image;
         if ($featuredImage == "") {
-            $featuredImage = null;
+            $featuredImage = 'https://b.zmtcdn.com/images/photoback.png';
         }
 
         $buttonTemplateBuilder = new ButtonTemplateBuilder(
@@ -356,7 +356,7 @@ class LINEController extends Controller
             }
             $featuredImage = $restaurant->featured_image;
             if ($featuredImage == "") {
-                $featuredImage = null;
+                $featuredImage = 'https://b.zmtcdn.com/images/photoback.png';
             }
 
             $carouselColumnTemplateBuilder = new CarouselColumnTemplateBuilder(
@@ -414,7 +414,7 @@ class LINEController extends Controller
             }
             $featuredImage = $restaurant->featured_image;
             if ($featuredImage == "") {
-                $featuredImage = null;
+                $featuredImage = 'https://b.zmtcdn.com/images/photoback.png';
             }
 
             $carouselColumnTemplateBuilder = new CarouselColumnTemplateBuilder(
@@ -472,7 +472,7 @@ class LINEController extends Controller
             }
             $featuredImage = $restaurant->featured_image;
             if ($featuredImage == "") {
-                $featuredImage = null;
+                $featuredImage = 'https://b.zmtcdn.com/images/photoback.png';
             }
 
             $carouselColumnTemplateBuilder = new CarouselColumnTemplateBuilder(
