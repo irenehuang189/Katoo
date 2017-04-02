@@ -76,10 +76,12 @@ class LINEController extends Controller
                 }
             } else if ($event instanceof PostbackEvent) {
                 parse_str($event->getPostbackData(), $query);
-                $locationKeys = ['lat', 'long', 'name', 'address'];
-
-                if (count(array_intersect_key(array_flip($locationKeys), $query)) === count($locationKeys)) {
-                    $message = $this->getLocation($query['lat'], $query['long'], $query['name'], $query['address']);
+                if ($query['type'] == 'restaurant') {
+                    if ($query['event'] == 'location') {
+                        $message = $this->getLocation($query['lat'], $query['long'], $query['name'], $query['address']);
+                    } else if ($query['event'] == 'review') {
+                        $message = $this->getRestaurantReviews($query['id']);
+                    }
                 }
             }
 
@@ -199,10 +201,13 @@ class LINEController extends Controller
         $templateActionBuilders = [
             new PostbackTemplateActionBuilder(
                 'Lokasi',
-                'name=' . $restaurant->name . '&address=' . $restaurant->address . '&lat=' . $restaurant->latitude . '&long=' . $restaurant->longitude
+                'type=restaurant&event=location&name=' . $restaurant->name . '&address=' . $restaurant->address . '&lat=' . $restaurant->latitude . '&long=' . $restaurant->longitude
             ),
             new UriTemplateActionBuilder('Menu', $restaurant->menu_url),
-            new UriTemplateActionBuilder('Lihat di Zomato', $restaurant->url)
+            new PostbackTemplateActionBuilder(
+                'Ulasan',
+                'type=restaurant&event=review&id=' . $restaurant->id
+            )
         ];
 
         $aggregateRating = $restaurant->aggregate_rating;
