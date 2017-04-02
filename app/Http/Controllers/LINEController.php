@@ -83,7 +83,7 @@ class LINEController extends Controller
                         } else if ($katooPythonCode == 2) {
                             $messages = [new TextMessageBuilder($text)];
                         } else {
-                            $messages = [new TextMessageBuilder($text)];
+                            $messages = $this->getChatterBotReply($text);
                         }
                     }
                 } else if ($event instanceof LocationMessage) {
@@ -431,6 +431,17 @@ class LINEController extends Controller
         $response = $this->katooPythonClient->request('POST', 'https://katoo-python.herokuapp.com/get-reply', ['json' => $requestBody]);
         $responseBody = json_decode($response->getBody());
         return $responseBody;
+    }
+
+    private function getChatterBotReply($text) {
+        $requestBody = ['message' => $text];
+        $response = $this->katooPythonClient->request('POST', 'http://katoo.pythonanywhere.com/get-reply', ['json' => $requestBody]);
+        if ($response->getStatusCode() != 200) {
+            return $this->getErrorMessage();
+        }
+
+        $responseBody = json_decode($response->getBody());
+        return [new TextMessageBuilder($responseBody->reply)];
     }
 
     private function getErrorMessage() {
