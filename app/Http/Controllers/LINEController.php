@@ -223,11 +223,15 @@ class LINEController extends Controller
         if (strlen($address) > $addressMaxLength) {
             $address = substr($address, 0, $addressMaxLength - 3) . '...';
         }
+        $featuredImage = $restaurant->featured_image;
+        if ($featuredImage == "") {
+            $featuredImage = null;
+        }
 
         $buttonTemplateBuilder = new ButtonTemplateBuilder(
             $name,
             $aggregateRating . "\n" . $address,
-            $restaurant->featured_image,
+            $featuredImage,
             $templateActionBuilders
         );
 
@@ -323,11 +327,15 @@ class LINEController extends Controller
             if (strlen($address) > $addressMaxLength) {
                 $address = substr($address, 0, $addressMaxLength - 3) . '...';
             }
+            $featuredImage = $restaurant->featured_image;
+            if ($featuredImage == "") {
+                $featuredImage = null;
+            }
 
             $carouselColumnTemplateBuilder = new CarouselColumnTemplateBuilder(
                 $name,
                 $aggregateRating . "\n" . $address,
-                $restaurant->featured_image,
+                $featuredImage,
                 $templateActionBuilders
             );
 
@@ -374,11 +382,15 @@ class LINEController extends Controller
             if (strlen($address) > $addressMaxLength) {
                 $address = substr($address, 0, $addressMaxLength - 3) . '...';
             }
+            $featuredImage = $restaurant->featured_image;
+            if ($featuredImage == "") {
+                $featuredImage = null;
+            }
 
             $carouselColumnTemplateBuilder = new CarouselColumnTemplateBuilder(
                 $name,
                 $aggregateRating . "\n" . $address,
-                $restaurant->featured_image,
+                $featuredImage,
                 $templateActionBuilders
             );
 
