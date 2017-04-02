@@ -118,7 +118,7 @@ class RestaurantController extends Controller
 
         $response = $this->getLocation($query);
         if ($response->status() != 200) {
-            return response($response->getContent(), $response->status());
+            return $this->getByQuery($query);
         }
 
         $location = json_decode($response->getContent());

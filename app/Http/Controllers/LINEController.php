@@ -323,7 +323,7 @@ class LINEController extends Controller
             $templateActionBuilders = [
                 new PostbackTemplateActionBuilder(
                     'Lokasi',
-                    'name=' . $restaurant->name . '&address=' . $restaurant->address . '&lat=' . $restaurant->latitude . '&long=' . $restaurant->longitude
+                    'type=restaurant&event=location&name=' . $restaurant->name . '&address=' . $restaurant->address . '&lat=' . $restaurant->latitude . '&long=' . $restaurant->longitude
                 ),
                 new UriTemplateActionBuilder('Menu', $restaurant->menu_url),
                 new PostbackTemplateActionBuilder(
@@ -381,7 +381,7 @@ class LINEController extends Controller
             $templateActionBuilders = [
                 new PostbackTemplateActionBuilder(
                     'Lokasi',
-                    'name=' . $restaurant->name . '&address=' . $restaurant->address . '&lat=' . $restaurant->latitude . '&long=' . $restaurant->longitude
+                    'type=restaurant&event=location&name=' . $restaurant->name . '&address=' . $restaurant->address . '&lat=' . $restaurant->latitude . '&long=' . $restaurant->longitude
                 ),
                 new UriTemplateActionBuilder('Menu', $restaurant->menu_url),
                 new PostbackTemplateActionBuilder(
@@ -439,7 +439,7 @@ class LINEController extends Controller
             $templateActionBuilders = [
                 new PostbackTemplateActionBuilder(
                     'Lokasi',
-                    'name=' . $restaurant->name . '&address=' . $restaurant->address . '&lat=' . $restaurant->latitude . '&long=' . $restaurant->longitude
+                    'type=restaurant&event=location&name=' . $restaurant->name . '&address=' . $restaurant->address . '&lat=' . $restaurant->latitude . '&long=' . $restaurant->longitude
                 ),
                 new UriTemplateActionBuilder('Menu', $restaurant->menu_url),
                 new PostbackTemplateActionBuilder(
@@ -487,6 +487,10 @@ class LINEController extends Controller
     private function getKatooPythonResponse($text) {
         $requestBody = ['message' => $text];
         $response = $this->katooPythonClient->request('POST', 'https://katoo-python.herokuapp.com/get-reply', ['json' => $requestBody]);
+        if ($response->getStatusCode() != 200) {
+            return $this->getErrorMessage();
+        }
+
         $responseBody = json_decode($response->getBody());
         return $responseBody;
     }
