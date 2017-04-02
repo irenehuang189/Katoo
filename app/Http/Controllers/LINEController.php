@@ -79,7 +79,16 @@ class LINEController extends Controller
                         $katooPythonResponseBody = $this->getKatooPythonResponse($text);
                         $katooPythonCode = $katooPythonResponseBody->reply->code;
                         if ($katooPythonCode == 1) {
-                            $messages = [new TextMessageBuilder($text)];
+                            $location = $katooPythonResponseBody->reply->location;
+                            $restaurantName = $katooPythonResponseBody->reply->name;
+
+                            if ($restaurantName) {
+                                $messages = $this->getRestaurantsByQuery($restaurantName);
+                            } else if ($location) {
+                                $messages = $this->getRestaurantsByLocationQuery($location);
+                            } else {
+                                $messages = $this->getErrorMessage();
+                            }
                         } else if ($katooPythonCode == 2) {
                             $messages = [new TextMessageBuilder($text)];
                         } else {
