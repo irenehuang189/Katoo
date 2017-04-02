@@ -109,33 +109,10 @@ class LINEController extends Controller
     }
 
     public function test() {
-        $message = $this->getRestaurant(18387851);
-        $this->bot->pushMessage('U4927259e833db2ea3b9b8881c00cb786', $message);
-    }
-
-    public function getPopularMovies() {
-        $movieController = new MovieController;
-        $response = $movieController->getPopular(1); // TODO: call stored page in redis
-        if($response->status() != 200) {
-            return $this->getErrorMessage();
+        $messages = $this->getUpcomingMovies();
+        foreach ($messages as $message) {
+            $this->bot->pushMessage('U4927259e833db2ea3b9b8881c00cb786', $message); 
         }
-        $movies = json_decode($response->getContent());
-
-        $moviesTitle = [];
-        $moviesCarouselColumns = [];
-        foreach($movies as $movie) {
-            array_push($moviesTitle, $movie->title);
-            $genreText = 'Genre: ' . implode(', ', $movie->genre) . '\n';
-            $ratingText = 'TMDB Score: ' . $movie->tmdb_rating . '/10.0';
-            $text = $genreText . $ratingText;
-            $movieCarouselColumn = new CarouselColumnTemplateBuilder($movie->title, $text, $movie->poster_path, []);
-            array_push($moviesCarouselColumns, $movieCarouselColumn);
-        }
-
-        $moviesCarousel = new CarouselTemplateBuilder($moviesCarouselColumns);
-        $altText = implode(', ', $moviesTitle);
-        $moviesTemplateMessage = new TemplateMessageBuilder($altText, $moviesCarousel);
-        return $moviesTemplateMessage;
     }
 
     public function getUpcomingMovies() {
@@ -148,19 +125,43 @@ class LINEController extends Controller
 
         $moviesTitle = [];
         $moviesCarouselColumns = [];
-        foreach($movies as $movie) {
-            array_push($moviesTitle, $movie->title);
-            $genreText = 'Genre: ' . implode(', ', $movie->genre) . '\n';
-            $ratingText = 'TMDB Score: ' . $movie->tmdb_rating . '/10.0';
-            $text = $genreText . $ratingText;
-            $movieCarouselColumn = new CarouselColumnTemplateBuilder($movie->title, $text, $movie->poster_path, []);
+        $end = sizeof($movies) < 5 ? sizeof($movies) : 5;
+        for ($i=0; $i < $end; $i++) { 
+            $movie = $movies[$i];
+
+            // Character limitation
+            $title = $this->getLimitedText($movie->title, 40);
+            $text = $this->getLimitedText($movie->genre, 60);
+            $poster = strlen($movie->poster) < 1000 ? $movie->poster : 'https://pbs.twimg.com/profile_images/600060188872155136/st4Sp6Aw.jpg';
+            array_push($moviesTitle, $title);
+
+            // Buttons
+            $templateAction = [
+                new PostbackTemplateActionBuilder(
+                    'Telusuri', 
+                    'type=movie&event=detail&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id,
+                    'Telusuri ' . $title
+                ),
+                new PostbackTemplateActionBuilder(
+                    'Review & Rating',
+                    'type=movie&event=review&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id,
+                    'Review & rating ' . $title
+                ),
+                new PostbackTemplateActionBuilder(
+                    'Info Penayangan',
+                    'type=movie&event=cinema&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id,
+                    'Info penayangan ' . $title
+                ),
+            ];
+
+            $movieCarouselColumn = new CarouselColumnTemplateBuilder($title, $text, $poster, $templateAction);
             array_push($moviesCarouselColumns, $movieCarouselColumn);
         }
 
         $moviesCarousel = new CarouselTemplateBuilder($moviesCarouselColumns);
         $altText = implode(', ', $moviesTitle);
         $moviesTemplateMessage = new TemplateMessageBuilder($altText, $moviesCarousel);
-        return $moviesTemplateMessage;
+        return [$moviesTemplateMessage];
     }
 
     public function getMovieDetails() {
@@ -435,5 +436,12 @@ class LINEController extends Controller
     private function getErrorMessage() {
         $errorMessageBuilders = [new TextMessageBuilder('Mohon maaf Katoo sedang lelah, silahkan coba beberapa saat lagi :)')];
         return $errorMessageBuilders;
+    }
+
+    private function getLimitedText($text, $limit) {
+        if (strlen($text) > $limit) {
+            return substr($text, 0, $limit-3) . '...';
+        }
+        return $text;
     }
 }

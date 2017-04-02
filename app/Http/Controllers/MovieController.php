@@ -19,41 +19,40 @@ class MovieController extends Controller
         $this->repository = new \Tmdb\Repository\MovieRepository($this->client);
     }
 
-    public function getPopular($pageNum) {
-        $response = $this->repository->getPopular(['page' => $pageNum]);
-        $movies = [];
-        foreach($response->toArray() as $movieResponse) {
-            $genres = [];
-            foreach($movieResponse->getGenres() as $genreResponse) {
-                array_push($genres, $this->getGenreName($genreResponse->getId()));
-            }
-            $movie = [
-                'tmdb_id'       => $movieResponse->getId(),
-                'title'         => $movieResponse->getTitle(),
-                'poster_path'   => env('TMDB_IMG_BASE_URL', 'localhost') . $movieResponse->getPosterPath(),
-                'genre'         => $genres,
-                'tmdb_rating'     => $movieResponse->getVoteAverage()
-            ];
-            array_push($movies, $movie);
-        }
-        return response()->json($movies);
-    }
-
     public function getUpcoming($pageNum) {
-        $response = $this->repository->getUpcoming(['page' => $pageNum]);
+        $dbController = new DatabaseController;
+        $cinemaUpcoming = $dbController->getTitleOfUpcomingMovies(5*($pageNum-1), 5*$pageNum);
+        // var_dump($cinemaUpcoming);
+        // die;
+
         $movies = [];
-        foreach($response->toArray() as $movieResponse) {
-            $genres = [];
-            foreach($movieResponse->getGenres() as $genreResponse) {
-                array_push($genres, $this->getGenreName($genreResponse->getId()));
+        foreach($cinemaUpcoming as $movie) {
+            // Get title, genre, poster path, imdb id from omdb api
+            $client = new Client(['base_uri' => 'http://www.omdbapi.com']);
+            $query = http_build_query([
+                    't'     => $movie->name,
+                    'y'     => 2017
+                ]);
+            $omdbResponse = $client->request('GET', '?' . $query)->getBody();
+            $movieResponse = json_decode($omdbResponse);
+
+            if($movieResponse->Response == 'False') {
+                $movie = [
+                    'db_id'     => $movie->id,
+                    'imdb_id'   => null,
+                    'title'     => ucwords(strtolower($movie->name)),
+                    'poster'    => $movie->poster != NULL ? $movie->poster : 'https://pbs.twimg.com/profile_images/600060188872155136/st4Sp6Aw.jpg',
+                    'genre'     => $movie->genre != '' ? ucwords($movie->genre) : '-'
+                ];
+            } else {
+                $movie = [
+                    'db_id'     => $movie->id,
+                    'imdb_id'   => $movieResponse->imdbID,
+                    'title'     => $movieResponse->Title,
+                    'poster'    => $movieResponse->Poster,
+                    'genre'     => $movieResponse->Genre
+                ];
             }
-            $movie = [
-                'tmdb_id'       => $movieResponse->getId(),
-                'title'         => $movieResponse->getTitle(),
-                'poster_path'   => env('TMDB_IMG_BASE_URL', 'localhost') . $movieResponse->getPosterPath(),
-                'genre'         => $genres,
-                'tmdb_rating'     => $movieResponse->getVoteAverage()
-            ];
             array_push($movies, $movie);
         }
         return response()->json($movies);
@@ -61,8 +60,6 @@ class MovieController extends Controller
 
     public function getDetails($movieId) {
         $tmdbResponse = $this->client->getMoviesApi()->getMovie($movieId);
-        // print_r($tmdbResponse);
-        // die;
 
         $client = new Client(['base_uri' => 'http://www.omdbapi.com']);
         $imdbResponse = $client->request('GET', '', [
@@ -71,12 +68,7 @@ class MovieController extends Controller
                             ],
                 'verify' => false
             ])->getBody();
-        // $imdbResponse = $client->get('', [
-        //         'query' => ['i' => $tmdbResponse['imdb_id'],
-        //                     'tomatoes' => 'true'
-        //                     ],
-        //         'verify' => false
-        //     ])->getBody();
+
         $detailsResponse = json_decode($imdbResponse);
         $details = [
             'tmdb_id'       => $tmdbResponse['id'],
