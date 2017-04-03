@@ -4,7 +4,7 @@ namespace App;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Cinema extends Model
+class NowPlayingCinema extends Model
 {
-    protected $table = 'cinema';
+    //
 }

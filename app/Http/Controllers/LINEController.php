@@ -74,7 +74,7 @@ class LINEController extends Controller
                     } else if (strtolower($text) == "tampilkan restoran di suatu lokasi") {
                         $messages = [new TextMessageBuilder("Ketikkan nama lokasi yang diinginkan")];
                     } else if (strtolower($text) == "cari restoran") {
-                        $messages = [new TextMessageBuilder("Ketikkan nama restoran yang ingin dicari")];
+                        $messages = [new TextMessageBuilder("Cari restoran dengan mengetikkan:\nmakan di <nama restoran>\n\nContoh:\nmakan di mcd")];
                     } else {
                         $katooPythonResponseBody = $this->getKatooPythonResponse($text);
                         $katooPythonCode = $katooPythonResponseBody->reply->code;
