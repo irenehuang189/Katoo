@@ -214,55 +214,6 @@ class LINEController extends Controller
         return new TextMessageBuilder(implode('\n\n', $text));
     }
 
-    private function getRestaurant($id) {
-        $restaurantController = new RestaurantController;
-        $response = $restaurantController->get($id);
-        if ($response->status() != 200) {
-            return $this->getErrorMessage();
-        }
-        $restaurant = json_decode($response->getContent());
-
-        $templateActionBuilders = [
-            new PostbackTemplateActionBuilder(
-                'Lokasi',
-                'type=restaurant&event=location&name=' . $restaurant->name . '&address=' . $restaurant->address . '&lat=' . $restaurant->latitude . '&long=' . $restaurant->longitude
-            ),
-            new UriTemplateActionBuilder('Menu', $restaurant->menu_url),
-            new PostbackTemplateActionBuilder(
-                'Ulasan',
-                'type=restaurant&event=review&id=' . $restaurant->id
-            )
-        ];
-
-        $aggregateRating = $restaurant->aggregate_rating;
-        if ($restaurant->aggregate_rating != 'Not rated') {
-            $aggregateRating .= '/5';
-        }
-        $name = $restaurant->name;
-        if (strlen($name) > 40) {
-            $name = substr($name, 0, 37) . '...';
-        }
-        $address = $restaurant->address;
-        $addressMaxLength = 60 - strlen($aggregateRating . "\n");
-        if (strlen($address) > $addressMaxLength) {
-            $address = substr($address, 0, $addressMaxLength - 3) . '...';
-        }
-        $featuredImage = $restaurant->featured_image;
-        if ($featuredImage == "") {
-            $featuredImage = 'https://b.zmtcdn.com/images/photoback.png';
-        }
-
-        $buttonTemplateBuilder = new ButtonTemplateBuilder(
-            $name,
-            $aggregateRating . "\n" . $address,
-            $featuredImage,
-            $templateActionBuilders
-        );
-
-        $templateMessageBuilders = [new TemplateMessageBuilder($restaurant->name, $buttonTemplateBuilder)];
-        return $templateMessageBuilders;
-    }
-
     private function getLocation($lat, $long, $name, $address) {
         $locationMessageBuilders = [new LocationMessageBuilder(
             $name,
@@ -271,34 +222,6 @@ class LINEController extends Controller
             $long
         )];
         return $locationMessageBuilders;
-    }
-
-    private function getRestaurantRating($id) {
-        $restaurantController = new RestaurantController;
-        $response = $restaurantController->getRating($id);
-        if ($response->status() != 200) {
-            return $this->getErrorMessage();
-        }
-        $rating = json_decode($response->getContent());
-
-        $aggregateRating = $rating->aggregate_rating;
-        if ($aggregateRating != 'Not rated') {
-            $aggregateRating = $aggregateRating . '/5';
-        }
-        $textMessageBuilders = [new TextMessageBuilder($aggregateRating)];
-        return $textMessageBuilders;
-    }
-
-    private function getRestaurantMenu($id) {
-        $restaurantController = new RestaurantController;
-        $response = $restaurantController->getMenu($id);
-        if ($response->status() != 200) {
-            return $this->getErrorMessage();
-        }
-        $menu = json_decode($response->getContent());
-
-        $textMessageBuilders = [new TextMessageBuilder($menu->menu_url)];
-        return $textMessageBuilders;
     }
 
     private function getRestaurantReviews($id) {

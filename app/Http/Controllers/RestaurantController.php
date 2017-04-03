@@ -14,52 +14,6 @@ class RestaurantController extends Controller
     	$this->defaultOption = ['verify' => false];
     }
 
-    public function get($id) {
-        $response = $this->client->request('GET', 'https://developers.zomato.com/api/v2.1/restaurant?res_id=' . $id, $this->defaultOption);
-        $responseBody = json_decode($response->getBody());
-        if ($responseBody->R->res_id > 0) {
-            if ($responseBody->user_rating->rating_text == "Not rated") {
-                $aggregate_rating = $responseBody->user_rating->rating_text;
-            } else {
-                $aggregate_rating = $responseBody->user_rating->aggregate_rating;
-            }
-
-            $restaurant = [
-                'id' => $id,
-                'name' => $responseBody->name,
-                'url' => $responseBody->url,
-                'address' => $responseBody->location->address,
-                'latitude' => $responseBody->location->latitude,
-                'longitude' => $responseBody->location->longitude,
-                'aggregate_rating' => $aggregate_rating,
-                'menu_url' => $responseBody->menu_url,
-                'featured_image' => $responseBody->featured_image
-            ];
-            return response()->json($restaurant);
-        }
-        return response('Invalid restaurant ID', 400);
-    }
-
-    public function getRating($id) {
-        $response = $this->get($id);
-        if ($response->status() != 200) {
-            return response($response->getContent(), $response->status());
-        }
-
-        $restaurant = json_decode($response->getContent());
-        return response()->json(["aggregate_rating" => $restaurant->aggregate_rating]);
-    }
-
-    public function getMenu($id) {
-        $response = $this->get($id);
-        if ($response->status() != 200) {
-            return response($response->getContent(), $response->status());
-        }
-
-        $restaurant = json_decode($response->getContent());
-        return response()->json(["menu_url" => $restaurant->menu_url]);
-    }
-
     public function getReviews($id) {
         $response = $this->get($id);
         if ($response->status() != 200) {
