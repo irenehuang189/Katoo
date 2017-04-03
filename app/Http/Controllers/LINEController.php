@@ -230,11 +230,10 @@ class LINEController extends Controller
             return $this->getErrorMessage();
         }
         $reviews = json_decode($response->getContent());
-        // var_dump($reviews); die;
 
         $review = $reviews[0];
         if(!$review->id) {
-            $textMessage = new TextMessageBuilder($reviews->content);
+            $textMessage = new TextMessageBuilder($review->content);
             return [$textMessage];
         }
 
@@ -243,11 +242,11 @@ class LINEController extends Controller
         $textMessages = [];
         while($start < strlen($text)) {
             $cutText = substr($text, $start, 2000);
-            array_push($textMessages, new TextMessageBuilder($cutText));
+            $textMessage = new TextMessageBuilder($cutText, null);
+            array_push($textMessages, $textMessage);
 
             $start += 2000;
         }
-
         return $textMessages;
     }
 
