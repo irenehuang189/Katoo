@@ -148,6 +148,30 @@ class MovieController extends Controller
         return response()->json($reviews);
     }
 
+    public function getCinema($dbId) {
+        $dbController = new DatabaseController;
+        $cinema = $dbController->getCinema($dbId);
+        if(!$cinema) {
+            return response()->json([
+                'error' => 'Tidak ada penayangan untuk film ini.'
+            ]);
+        }
+
+        return response()->json($cinema);
+    }
+
+    public function getSchedule($dbId, $city) {
+        $dbController = new DatabaseController;
+        $schedule = $dbController->getSchedule($dbId, $city);
+        if(!$schedule) {
+            return response()->json([
+                'error' => 'Tidak ada jadwal penayangan untuk film ini.'
+            ]);
+        }
+
+        return response()->json($schedule);
+    }
+
     // Helper
     public function getGenreList() {
         $response = $this->client->getGenresApi()->getMovieGenres();
