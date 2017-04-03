@@ -22,3 +22,5 @@ Route::get('/movie/{imdbId}/{dbId}/{state}', 'MovieController@getDetailsById');
 Route::get('/movie/{movieId}/reviews', 'MovieController@getReviews');
 
 Route::get('/restaurant/{id}/reviews', 'RestaurantController@getReviews');
+
+Route::post('/database', 'DatabaseController@resetDatabase');
