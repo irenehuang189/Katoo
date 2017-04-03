@@ -19,12 +19,19 @@ class DatabaseController extends Controller
     }
 
     public function getAllMovies() {
-        $upcoming = DB::table('upcominginfo')->pluck('name');
-        // return $upcoming;
-        var_dump(array_keys($upcoming));
-        $playing = DB::table('nowplayinginfo')->pluck('name');
-        // var_dump($playing);
-        // die;
-        return $upcoming + $playing;
+        $upcomings = DB::table('upcominginfo')->pluck('name');
+        $playings = DB::table('nowplayinginfo')->pluck('name');
+
+        $movie = [];
+        foreach ($upcomings as $upcoming) {
+            array_push($movie, $upcoming);
+        }
+        foreach ($playings as $playing) {
+            array_push($movie, $playing);
+        }
+
+        return response()->json([
+            'movies' => $movie
+        ]);
     }
 }
