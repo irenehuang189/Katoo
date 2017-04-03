@@ -14,9 +14,11 @@
 Route::post('/', 'LINEController@index');
 Route::get('test', 'LINEController@test');
 
+Route::get('/movies/all', 'DatabaseController@getAllMovies');
+
 Route::get('/movie/popular/{pageNum}', 'MovieController@getPopular');
 Route::get('/movie/upcoming/{pageNum}', 'MovieController@getUpcoming');
-Route::get('/movie/{movieId}', 'MovieController@getDetails');
+Route::get('/movie/{imdbId}/{dbId}/{state}', 'MovieController@getDetailsById');
 Route::get('/movie/{movieId}/reviews', 'MovieController@getReviews');
 
 Route::get('/restaurant/{id}', 'RestaurantController@get');

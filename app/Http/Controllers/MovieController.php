@@ -22,8 +22,6 @@ class MovieController extends Controller
     public function getUpcoming($pageNum) {
         $dbController = new DatabaseController;
         $cinemaUpcoming = $dbController->getTitleOfUpcomingMovies(5*($pageNum-1), 5*$pageNum);
-        // var_dump($cinemaUpcoming);
-        // die;
 
         $movies = [];
         foreach($cinemaUpcoming as $movie) {
@@ -82,6 +80,46 @@ class MovieController extends Controller
             'url'           => env('IMDB_BASE_URL', 'localhost') . $tmdbResponse['imdb_id'],
             // 'tmdb_url'     => $tmdbResponse['tmdb_vote']
         ];
+        return response()->json($details);
+    }
+
+    public function getDetailsById($imdbId, $dbId, $state) {
+        $client = new Client(['base_uri' => 'http://www.omdbapi.com']);
+        $omdbResponse = $client->request('GET', '', [
+                'query' => ['i'         => $imdbId,
+                            'tomatoes'  => 'true',
+                            'plot'      => 'full'
+                            ]
+            ])->getBody();
+        $detailsResponse = json_decode($omdbResponse);
+
+        if($detailsResponse->Response == 'False') {
+            // Get details in database
+            $dbController = new DatabaseController;
+            $detailsResponse = $dbController->getDetailsById($dbId, $state);
+            return $detailsResponse;
+            
+            $details = [
+                'imdb_id'       => $imdbId,
+                'db_id'         => $dbId,
+                'title'         => $detailsResponse->name,
+                'genre'         => $detailsResponse->genre,
+                'duration'      => $detailsResponse->duration,
+                'imdb_rating'   => $detailsResponse->imdbRating,
+                'ratings'       => null
+            ];
+        } else {
+            $details = [
+                'imdb_id'       => $imdbId,
+                'db_id'         => $dbId,
+                'title'         => $detailsResponse->Title,
+                'genre'         => $detailsResponse->Genre,
+                'duration'      => $detailsResponse->Runtime,
+                'imdb_rating'   => $detailsResponse->imdbRating,
+                'ratings'       => $detailsResponse->Ratings
+            ];
+        }
+
         return response()->json($details);
     }
 

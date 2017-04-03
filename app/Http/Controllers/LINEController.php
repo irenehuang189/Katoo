@@ -154,7 +154,7 @@ class LINEController extends Controller
         return [$moviesTemplateMessage];
     }
 
-    public function getMovieDetails() {
+    public function getMovie() {
         $movieController = new MovieController;
         $response = $movieController->getDetails(293167);
         if($response->status() != 200) {
@@ -178,6 +178,15 @@ class LINEController extends Controller
         $altText = 'Rincian film ' . $movie->title;
         $movieTemplateMessage = new TemplateMessageBuilder($altText, $movieButtonTemplate);
         return $movieTemplateMessage;
+    }
+
+    public function getMovieDetailsById() {
+        $movieController = new MovieController;
+        $response = $movieController->getDetailsById(tt2771200, 2);
+        if($response->status() != 200) {
+            return $this->getErrorMessage();
+        }
+        $movie = json_decode($response->getContent());
     }
 
     public function getMovieReviews() {
