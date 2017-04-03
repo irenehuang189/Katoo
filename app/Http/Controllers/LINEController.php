@@ -74,7 +74,7 @@ class LINEController extends Controller
                     } else if (strtolower($text) == "tampilkan restoran di suatu lokasi") {
                         $messages = [new TextMessageBuilder("Ketikkan nama lokasi yang diinginkan")];
                     } else if (strtolower($text) == "cari restoran") {
-                        $messages = [new TextMessageBuilder("Cari restoran dengan mengetikkan:\nmakan di <nama restoran>\n\nContoh:\nmakan di mcd")];
+                        $messages = [new TextMessageBuilder("Ketikkan nama restoran yang ingin dicari")];
                     } else {
                         $katooPythonResponseBody = $this->getKatooPythonResponse($text);
                         $katooPythonCode = $katooPythonResponseBody->reply->code;
@@ -117,6 +117,12 @@ class LINEController extends Controller
                             $dbId = $query['db_id'];
                             $messages = $this->getMovieCinema($imdbId, $dbId);
                             break;
+                        case 'schedule':
+                            $imdbId = $query['imdb_id'];
+                            $dbId = $query['db_id'];
+                            $city = $query['city'];
+                            $messages = $this->getMovieSchedule($imdbId, $dbId, $city);
+                            break;
                         default:
                             # code...
                             break;
@@ -139,7 +145,8 @@ class LINEController extends Controller
     }
 
     public function test() {
-        $messages = $this->getMovieSchedule('tt2771200', 2, 'Bandung');
+        // $messages = $this->getMovieDetailsById('tt2771200', 2, 'nowplaying');
+        $messages = $this->getUpcomingMovies();
         foreach ($messages as $message) {
             $this->bot->pushMessage('U4927259e833db2ea3b9b8881c00cb786', $message); 
         }

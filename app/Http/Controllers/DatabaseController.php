@@ -22,17 +22,17 @@ class DatabaseController extends Controller
     }
 
     public function getCinema(int $dbId) {
-        $info = DB::table('nowplayinginfo')->where('id', $dbId)->select('name')->first();
+        $info = DB::table('now_playing_infos')->where('id', $dbId)->select('name')->first();
         if(!$info->name) {
             return null;
         }
 
-        $result = DB::table('nowplayingcinema')->where('movie', $info->name)->pluck('name');
+        $result = DB::table('now_playing_cinemas')->where('movie', $info->name)->pluck('name');
         return $this->categorizeCinemaToCity($result);
     }
 
     public function getSchedule(int $dbId, string $city) {
-        $info = DB::table('nowplayinginfo')->where('id', $dbId)->select('name')->first();
+        $info = DB::table('now_playing_infos')->where('id', $dbId)->select('name')->first();
         if(!$info->name){
             return null;
         }
@@ -40,7 +40,7 @@ class DatabaseController extends Controller
         $cinemas = $this->getAllCinemasInCity($city);
         $schedules = [];
         foreach ($cinemas as $cinema) {
-            $schedule = DB::table('nowplayingcinema')
+            $schedule = DB::table('now_playing_cinemas')
                 ->where('movie', '=', $info->name)
                 ->where('name', '=', $cinema)
                 ->select('showtime', 'price', 'auditype')

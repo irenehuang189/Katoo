@@ -130,7 +130,7 @@ class MovieController extends Controller
         if(empty((array)$find['movie_results'])) {
            return response()->json([
                 ['id' => null,
-                'content' => 'Maaf tidak ada review untuk film ini']
+                'content' => 'Maaf tidak ada review untuk film ini :(']
            ]);
         }
 
@@ -153,7 +153,7 @@ class MovieController extends Controller
         $cinema = $dbController->getCinema($dbId);
         if(!$cinema) {
             return response()->json([
-                'error' => 'Tidak ada penayangan untuk film ini.'
+                'error' => 'Maaf, belum ada penayangan film ini di hari ini :('
             ]);
         }
 
@@ -165,7 +165,7 @@ class MovieController extends Controller
         $schedule = $dbController->getSchedule($dbId, $city);
         if(!$schedule) {
             return response()->json([
-                'error' => 'Tidak ada jadwal penayangan untuk film ini.'
+                'error' => 'Maaf, belum ada penayangan film ini di hari ini :('
             ]);
         }
 
