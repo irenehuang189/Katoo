@@ -239,6 +239,9 @@ class LINEController extends Controller
             $textMessageBuilders[] = new TextMessageBuilder($reviewMessage);
         }
 
+        if (empty($textMessageBuilders)) {
+            return $this->getEmptyReviewsMessage();
+        }
         return $textMessageBuilders;
     }
 
@@ -298,11 +301,14 @@ class LINEController extends Controller
             }
         }
 
-        if (sizeof($carouselColumnTemplateBuilders) < 5) {
+        if (sizeof($carouselColumnTemplateBuilders) > 0 && sizeof($carouselColumnTemplateBuilders) < 5) {
             $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
             $templateMessageBuilders[] = new TemplateMessageBuilder('Restoran Terdekat', $carouselTemplateBuilder);
         }
 
+        if (empty($templateMessageBuilders)) {
+            return $this->getEmptyRestaurantsMessage();
+        }
         return $templateMessageBuilders;
     }
 
@@ -362,11 +368,14 @@ class LINEController extends Controller
             }
         }
 
-        if (sizeof($carouselColumnTemplateBuilders) < 5) {
+        if (sizeof($carouselColumnTemplateBuilders) > 0 && sizeof($carouselColumnTemplateBuilders) < 5) {
             $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
             $templateMessageBuilders[] = new TemplateMessageBuilder('Restoran di ' . $query, $carouselTemplateBuilder);
         }
 
+        if (empty($templateMessageBuilders)) {
+            return $this->getEmptyRestaurantsMessage();
+        }
         return $templateMessageBuilders;
     }
 
@@ -426,11 +435,14 @@ class LINEController extends Controller
             }
         }
 
-        if (sizeof($carouselColumnTemplateBuilders) < 5) {
+        if (sizeof($carouselColumnTemplateBuilders) > 0 && sizeof($carouselColumnTemplateBuilders) < 5) {
             $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
             $templateMessageBuilders[] = new TemplateMessageBuilder('Restoran ' . $query, $carouselTemplateBuilder);
         }
 
+        if (empty($templateMessageBuilders)) {
+            return $this->getEmptyRestaurantsMessage();
+        }
         return $templateMessageBuilders;
     }
 
@@ -461,9 +473,14 @@ class LINEController extends Controller
         return $errorMessageBuilders;
     }
 
-    private function getEmptyRestaurantMessage() {
+    private function getEmptyRestaurantsMessage() {
         $emptyRestaurantMessageBuilders = [new TextMessageBuilder('Maaf restoran tidak ditemukan :(')];
         return $emptyRestaurantMessageBuilders;
+    }
+
+    private function getEmptyReviewsMessage() {
+        $emptyReviewsMessageBuilders = [new TextMessageBuilder('Maaf ulasan tidak ada :(')];
+        return $emptyReviewsMessageBuilders;
     }
 
     private function getLimitedText($text, $limit) {

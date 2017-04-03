@@ -19,7 +19,4 @@ Route::get('/movie/upcoming/{pageNum}', 'MovieController@getUpcoming');
 Route::get('/movie/{movieId}', 'MovieController@getDetails');
 Route::get('/movie/{movieId}/reviews', 'MovieController@getReviews');
 
-Route::get('/restaurant/{id}', 'RestaurantController@get');
-Route::get('/restaurant/{id}/rating', 'RestaurantController@getRating');
-Route::get('/restaurant/{id}/menu', 'RestaurantController@getMenu');
 Route::get('/restaurant/{id}/reviews', 'RestaurantController@getReviews');
