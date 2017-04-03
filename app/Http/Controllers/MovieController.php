@@ -124,7 +124,18 @@ class MovieController extends Controller
     }
 
     public function getReviews($movieId) {
-        $response = $this->repository->getReviews($movieId);
+        $find = $this->client->getFindApi()->findBy($movieId, [
+            'external_source' => 'imdb_id'
+        ]);
+        if(empty((array)$find['movie_results'])) {
+           return response()->json([
+                ['id' => null,
+                'content' => 'Maaf tidak ada review untuk film ini']
+           ]);
+        }
+
+        $tmdbId = $find['movie_results']['0']['id'];
+        $response = $this->repository->getReviews($tmdbId);
         $reviews = [];
         foreach($response->toArray() as $reviewResponse) {
             $review = [

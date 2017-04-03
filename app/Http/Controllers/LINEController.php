@@ -118,7 +118,7 @@ class LINEController extends Controller
     }
 
     public function test() {
-        $messages = $this->getMovieDetailsById();
+        $messages = $this->getMovieReviews();
         foreach ($messages as $message) {
             $this->bot->pushMessage('U4927259e833db2ea3b9b8881c00cb786', $message); 
         }
@@ -225,17 +225,30 @@ class LINEController extends Controller
 
     public function getMovieReviews() {
         $movieController = new MovieController;
-        $response = $movieController->getReviews(293167);
+        $response = $movieController->getReviews('tt2771200');
         if($response->status() != 200) {
             return $this->getErrorMessage();
         }
         $reviews = json_decode($response->getContent());
+        // var_dump($reviews); die;
 
-        $text = [];
-        foreach($reviews as $review) {
-            array_push($text, $review->content . ' (' . $review->url. ')');
+        $review = $reviews[0];
+        if(!$review->id) {
+            $textMessage = new TextMessageBuilder($reviews->content);
+            return [$textMessage];
         }
-        return new TextMessageBuilder(implode('\n\n', $text));
+
+        $text = $review->content . ' (' . $review->url. ')';
+        $start = 0;
+        $textMessages = [];
+        while($start < strlen($text)) {
+            $cutText = substr($text, $start, 2000);
+            array_push($textMessages, new TextMessageBuilder($cutText));
+
+            $start += 2000;
+        }
+
+        return $textMessages;
     }
 
     private function getLocation($lat, $long, $name, $address) {
