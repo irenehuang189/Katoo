@@ -328,6 +328,7 @@ class LINEController extends Controller
         $restaurants = json_decode($response->getContent());
 
         $carouselColumnTemplateBuilders = [];
+        $templateMessageBuilders = [];
         foreach ($restaurants->nearby_restaurants as $restaurant) {
             $templateActionBuilders = [
                 new PostbackTemplateActionBuilder(
@@ -368,12 +369,17 @@ class LINEController extends Controller
 
             $carouselColumnTemplateBuilders[] = $carouselColumnTemplateBuilder;
             if (sizeof($carouselColumnTemplateBuilders) == 5) {
-                break;
+                $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
+                $templateMessageBuilders[] = new TemplateMessageBuilder('Restoran Terdekat', $carouselTemplateBuilder);
+                $carouselColumnTemplateBuilders = [];
             }
         }
 
-        $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
-        $templateMessageBuilders = [new TemplateMessageBuilder('Restoran Terdekat', $carouselTemplateBuilder)];
+        if (sizeof($carouselColumnTemplateBuilders) < 5) {
+            $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
+            $templateMessageBuilders[] = new TemplateMessageBuilder('Restoran Terdekat', $carouselTemplateBuilder);
+        }
+
         return $templateMessageBuilders;
     }
 
@@ -386,6 +392,7 @@ class LINEController extends Controller
         $restaurants = json_decode($response->getContent());
 
         $carouselColumnTemplateBuilders = [];
+        $templateMessageBuilders = [];
         foreach ($restaurants->restaurants as $restaurant) {
             $templateActionBuilders = [
                 new PostbackTemplateActionBuilder(
@@ -426,12 +433,17 @@ class LINEController extends Controller
 
             $carouselColumnTemplateBuilders[] = $carouselColumnTemplateBuilder;
             if (sizeof($carouselColumnTemplateBuilders) == 5) {
-                break;
+                $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
+                $templateMessageBuilders[] = new TemplateMessageBuilder('Restoran di ' . $query, $carouselTemplateBuilder);
+                $carouselColumnTemplateBuilders = [];
             }
         }
 
-        $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
-        $templateMessageBuilders = [new TemplateMessageBuilder('Restoran di ' . $query, $carouselTemplateBuilder)];
+        if (sizeof($carouselColumnTemplateBuilders) < 5) {
+            $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
+            $templateMessageBuilders[] = new TemplateMessageBuilder('Restoran di ' . $query, $carouselTemplateBuilder);
+        }
+
         return $templateMessageBuilders;
     }
 
@@ -444,6 +456,7 @@ class LINEController extends Controller
         $restaurants = json_decode($response->getContent());
 
         $carouselColumnTemplateBuilders = [];
+        $templateMessageBuilders = [];
         foreach ($restaurants->restaurants as $restaurant) {
             $templateActionBuilders = [
                 new PostbackTemplateActionBuilder(
@@ -484,12 +497,17 @@ class LINEController extends Controller
 
             $carouselColumnTemplateBuilders[] = $carouselColumnTemplateBuilder;
             if (sizeof($carouselColumnTemplateBuilders) == 5) {
-                break;
+                $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
+                $templateMessageBuilders[] = new TemplateMessageBuilder('Restoran ' . $query, $carouselTemplateBuilder);
+                $carouselColumnTemplateBuilders = [];
             }
         }
 
-        $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
-        $templateMessageBuilders = [new TemplateMessageBuilder('Restoran ' . $query, $carouselTemplateBuilder)];
+        if (sizeof($carouselColumnTemplateBuilders) < 5) {
+            $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
+            $templateMessageBuilders[] = new TemplateMessageBuilder('Restoran ' . $query, $carouselTemplateBuilder);
+        }
+
         return $templateMessageBuilders;
     }
 
@@ -518,6 +536,11 @@ class LINEController extends Controller
     private function getErrorMessage() {
         $errorMessageBuilders = [new TextMessageBuilder('Mohon maaf Katoo sedang lelah, silahkan coba beberapa saat lagi :)')];
         return $errorMessageBuilders;
+    }
+
+    private function getEmptyRestaurantMessage() {
+        $emptyRestaurantMessageBuilders = [new TextMessageBuilder('Maaf restoran tidak ditemukan :(')];
+        return $emptyRestaurantMessageBuilders;
     }
 
     private function getLimitedText($text, $limit) {
