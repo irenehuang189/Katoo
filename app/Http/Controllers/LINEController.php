@@ -118,7 +118,7 @@ class LINEController extends Controller
     }
 
     public function test() {
-        $messages = $this->getUpcomingMovies();
+        $messages = $this->getMovieDetailsById();
         foreach ($messages as $message) {
             $this->bot->pushMessage('U4927259e833db2ea3b9b8881c00cb786', $message); 
         }
@@ -148,17 +148,17 @@ class LINEController extends Controller
             $templateAction = [
                 new PostbackTemplateActionBuilder(
                     'Telusuri', 
-                    'type=movie&event=detail&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id,
+                    'type=movie&event=detail&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=upcoming',
                     'Telusuri ' . $title
                 ),
                 new PostbackTemplateActionBuilder(
                     'Review & Rating',
-                    'type=movie&event=review&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id,
+                    'type=movie&event=review&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=upcoming',
                     'Review & rating ' . $title
                 ),
                 new PostbackTemplateActionBuilder(
                     'Info Penayangan',
-                    'type=movie&event=cinema&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id,
+                    'type=movie&event=cinema&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=upcoming',
                     'Info penayangan ' . $title
                 ),
             ];
@@ -201,11 +201,26 @@ class LINEController extends Controller
 
     public function getMovieDetailsById() {
         $movieController = new MovieController;
-        $response = $movieController->getDetailsById(tt2771200, 2);
+        $response = $movieController->getDetailsById('tt2771200', 2, 'nowplaying');
         if($response->status() != 200) {
             return $this->getErrorMessage();
         }
         $movie = json_decode($response->getContent());
+
+        $identity = [
+            'Judul: ' . $movie->title,
+            'Genre: ' . $movie->genre,
+            'Duration: ' . $movie->duration,
+            'Rating: '
+        ];
+        $ratings = ['- IMDB ' . $movie->imdb_rating . '/10'];
+        foreach ($movie->ratings as $rating) {
+            array_push($ratings, '- ' . $rating->Source . ' ' . $rating->Value);
+        }
+        $text = implode("\n", $identity) . "\n" . implode("\n", $ratings);
+
+        $textMessage = new TextMessageBuilder($text);
+        return [$textMessage];
     }
 
     public function getMovieReviews() {
