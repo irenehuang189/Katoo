@@ -148,29 +148,39 @@ class RestaurantController extends Controller
     }
 
     public function getByQuery($query) {
-        $response = $this->client->request('GET', 'https://developers.zomato.com/api/v2.1/search?q=' . $query, $this->defaultOption);
-        $responseBody = json_decode($response->getBody());
-        $restaurants = [];
-        foreach ($responseBody->restaurants as $res) {
-            if ($res->restaurant->user_rating->rating_text == "Not rated") {
-                $aggregate_rating = $res->restaurant->user_rating->rating_text;
-            } else {
-                $aggregate_rating = $res->restaurant->user_rating->aggregate_rating;
-            }
+        $entityIds = [];
+        $entityIds[] = json_decode($this->getLocation('jakarta')->getContent())->entity_id;
+        $entityIds[] = json_decode($this->getLocation('bandung')->getContent())->entity_id;
+        $entityIds[] = json_decode($this->getLocation('bali')->getContent())->entity_id;
 
-            $restaurant = [
-                'id' => $res->restaurant->R->res_id,
-                'name' => $res->restaurant->name,
-                'url' => $res->restaurant->url,
-                'address' => $res->restaurant->location->address,
-                'latitude' => $res->restaurant->location->latitude,
-                'longitude' => $res->restaurant->location->longitude,
-                'aggregate_rating' => $aggregate_rating,
-                'menu_url' => $res->restaurant->menu_url,
-                'featured_image' => $res->restaurant->featured_image
-            ];
-            $restaurants[] = $restaurant;
+        $entityType = 'city';
+        $restaurants = [];
+        foreach ($entityIds as $entityId) {
+            $response = $this->client->request('GET', 'https://developers.zomato.com/api/v2.1/search?entity_id=' . $entityId . '&entity_type=' . $entityType . '&q=' . $query, $this->defaultOption);
+            $responseBody = json_decode($response->getBody());
+
+            foreach ($responseBody->restaurants as $res) {
+                if ($res->restaurant->user_rating->rating_text == "Not rated") {
+                    $aggregate_rating = $res->restaurant->user_rating->rating_text;
+                } else {
+                    $aggregate_rating = $res->restaurant->user_rating->aggregate_rating;
+                }
+
+                $restaurant = [
+                    'id' => $res->restaurant->R->res_id,
+                    'name' => $res->restaurant->name,
+                    'url' => $res->restaurant->url,
+                    'address' => $res->restaurant->location->address,
+                    'latitude' => $res->restaurant->location->latitude,
+                    'longitude' => $res->restaurant->location->longitude,
+                    'aggregate_rating' => $aggregate_rating,
+                    'menu_url' => $res->restaurant->menu_url,
+                    'featured_image' => $res->restaurant->featured_image
+                ];
+                $restaurants[] = $restaurant;
+            }
         }
+
         return response()->json(["restaurants" => $restaurants]);
     }
 }
