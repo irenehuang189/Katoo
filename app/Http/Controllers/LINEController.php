@@ -28,10 +28,12 @@ use LINE\LINEBot\TemplateActionBuilder\UriTemplateActionBuilder;
 class LINEController extends Controller
 {
     private $bot;
+    private $katooPythonClient;
 
     public function __construct() {
         $httpClient = new CurlHTTPClient(env('LINE_ACCESS_TOKEN', 'localhost'));
         $this->bot = new LINEBot($httpClient, ['channelSecret' => env('LINE_SECRET', 'localhost')]);
+        $this->katooPythonClient = new \GuzzleHttp\Client(['headers' => ['Content-Type' => 'application/json']]);
     }
     
     public function index(Request $req) {
@@ -68,13 +70,30 @@ class LINEController extends Controller
                     } else if (strtolower($text) == "cari film") {
                         $messages = [new TextMessageBuilder($text)];
                     } else if (strtolower($text) == "tampilkan restoran terdekat") {
-                        $messages = [new TextMessageBuilder($text)];
+                        $messages = [new TextMessageBuilder("Kirimkan lokasimu menggunakan fitur LINE location")];
                     } else if (strtolower($text) == "tampilkan restoran di suatu lokasi") {
-                        $messages = [new TextMessageBuilder($text)];
+                        $messages = [new TextMessageBuilder("Ketikkan nama lokasi yang diinginkan")];
                     } else if (strtolower($text) == "cari restoran") {
-                        $messages = [new TextMessageBuilder($text)];
+                        $messages = [new TextMessageBuilder("Ketikkan nama restoran yang ingin dicari")];
                     } else {
-                        $messages = [new TextMessageBuilder($text)];
+                        $katooPythonResponseBody = $this->getKatooPythonResponse($text);
+                        $katooPythonCode = $katooPythonResponseBody->reply->code;
+                        if ($katooPythonCode == 1) {
+                            $location = $katooPythonResponseBody->reply->location;
+                            $restaurantName = $katooPythonResponseBody->reply->name;
+
+                            if ($restaurantName) {
+                                $messages = $this->getRestaurantsByQuery($restaurantName);
+                            } else if ($location) {
+                                $messages = $this->getRestaurantsByLocationQuery($location);
+                            } else {
+                                $messages = $this->getErrorMessage();
+                            }
+                        } else if ($katooPythonCode == 2) {
+                            $messages = [new TextMessageBuilder($text)];
+                        } else {
+                            $messages = $this->getChatterBotReply($text);
+                        }
                     }
                 } else if ($event instanceof LocationMessage) {
                     $messages = $this->getNearbyRestaurants($event->getLatitude(), $event->getLongitude());
@@ -204,56 +223,6 @@ class LINEController extends Controller
         return new TextMessageBuilder(implode('\n\n', $text));
     }
 
-    /* Restaurant */
-    private function getRestaurant($id) {
-        $restaurantController = new RestaurantController;
-        $response = $restaurantController->get($id);
-        if ($response->status() != 200) {
-            return $this->getErrorMessage();
-        }
-        $restaurant = json_decode($response->getContent());
-
-        $templateActionBuilders = [
-            new PostbackTemplateActionBuilder(
-                'Lokasi',
-                'type=restaurant&event=location&name=' . $restaurant->name . '&address=' . $restaurant->address . '&lat=' . $restaurant->latitude . '&long=' . $restaurant->longitude
-            ),
-            new UriTemplateActionBuilder('Menu', $restaurant->menu_url),
-            new PostbackTemplateActionBuilder(
-                'Ulasan',
-                'type=restaurant&event=review&id=' . $restaurant->id
-            )
-        ];
-
-        $aggregateRating = $restaurant->aggregate_rating;
-        if ($restaurant->aggregate_rating != 'Not rated') {
-            $aggregateRating .= '/5';
-        }
-        $name = $restaurant->name;
-        if (strlen($name) > 40) {
-            $name = substr($name, 0, 37) . '...';
-        }
-        $address = $restaurant->address;
-        $addressMaxLength = 60 - strlen($aggregateRating . "\n");
-        if (strlen($address) > $addressMaxLength) {
-            $address = substr($address, 0, $addressMaxLength - 3) . '...';
-        }
-        $featuredImage = $restaurant->featured_image;
-        if ($featuredImage == "") {
-            $featuredImage = null;
-        }
-
-        $buttonTemplateBuilder = new ButtonTemplateBuilder(
-            $name,
-            $aggregateRating . "\n" . $address,
-            $featuredImage,
-            $templateActionBuilders
-        );
-
-        $templateMessageBuilders = [new TemplateMessageBuilder($restaurant->name, $buttonTemplateBuilder)];
-        return $templateMessageBuilders;
-    }
-
     private function getLocation($lat, $long, $name, $address) {
         $locationMessageBuilders = [new LocationMessageBuilder(
             $name,
@@ -262,34 +231,6 @@ class LINEController extends Controller
             $long
         )];
         return $locationMessageBuilders;
-    }
-
-    private function getRestaurantRating($id) {
-        $restaurantController = new RestaurantController;
-        $response = $restaurantController->getRating($id);
-        if ($response->status() != 200) {
-            return $this->getErrorMessage();
-        }
-        $rating = json_decode($response->getContent());
-
-        $aggregateRating = $rating->aggregate_rating;
-        if ($aggregateRating != 'Not rated') {
-            $aggregateRating = $aggregateRating . '/5';
-        }
-        $textMessageBuilders = [new TextMessageBuilder($aggregateRating)];
-        return $textMessageBuilders;
-    }
-
-    private function getRestaurantMenu($id) {
-        $restaurantController = new RestaurantController;
-        $response = $restaurantController->getMenu($id);
-        if ($response->status() != 200) {
-            return $this->getErrorMessage();
-        }
-        $menu = json_decode($response->getContent());
-
-        $textMessageBuilders = [new TextMessageBuilder($menu->menu_url)];
-        return $textMessageBuilders;
     }
 
     private function getRestaurantReviews($id) {
@@ -307,6 +248,9 @@ class LINEController extends Controller
             $textMessageBuilders[] = new TextMessageBuilder($reviewMessage);
         }
 
+        if (empty($textMessageBuilders)) {
+            return $this->getEmptyReviewsMessage();
+        }
         return $textMessageBuilders;
     }
 
@@ -319,11 +263,12 @@ class LINEController extends Controller
         $restaurants = json_decode($response->getContent());
 
         $carouselColumnTemplateBuilders = [];
+        $templateMessageBuilders = [];
         foreach ($restaurants->nearby_restaurants as $restaurant) {
             $templateActionBuilders = [
                 new PostbackTemplateActionBuilder(
                     'Lokasi',
-                    'name=' . $restaurant->name . '&address=' . $restaurant->address . '&lat=' . $restaurant->latitude . '&long=' . $restaurant->longitude
+                    'type=restaurant&event=location&name=' . $restaurant->name . '&address=' . $restaurant->address . '&lat=' . $restaurant->latitude . '&long=' . $restaurant->longitude
                 ),
                 new UriTemplateActionBuilder('Menu', $restaurant->menu_url),
                 new PostbackTemplateActionBuilder(
@@ -347,7 +292,7 @@ class LINEController extends Controller
             }
             $featuredImage = $restaurant->featured_image;
             if ($featuredImage == "") {
-                $featuredImage = null;
+                $featuredImage = 'https://b.zmtcdn.com/images/photoback.png';
             }
 
             $carouselColumnTemplateBuilder = new CarouselColumnTemplateBuilder(
@@ -359,12 +304,20 @@ class LINEController extends Controller
 
             $carouselColumnTemplateBuilders[] = $carouselColumnTemplateBuilder;
             if (sizeof($carouselColumnTemplateBuilders) == 5) {
-                break;
+                $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
+                $templateMessageBuilders[] = new TemplateMessageBuilder('Restoran Terdekat', $carouselTemplateBuilder);
+                $carouselColumnTemplateBuilders = [];
             }
         }
 
-        $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
-        $templateMessageBuilders = [new TemplateMessageBuilder('Restoran Terdekat', $carouselTemplateBuilder)];
+        if (sizeof($carouselColumnTemplateBuilders) > 0 && sizeof($carouselColumnTemplateBuilders) < 5) {
+            $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
+            $templateMessageBuilders[] = new TemplateMessageBuilder('Restoran Terdekat', $carouselTemplateBuilder);
+        }
+
+        if (empty($templateMessageBuilders)) {
+            return $this->getEmptyRestaurantsMessage();
+        }
         return $templateMessageBuilders;
     }
 
@@ -377,11 +330,12 @@ class LINEController extends Controller
         $restaurants = json_decode($response->getContent());
 
         $carouselColumnTemplateBuilders = [];
+        $templateMessageBuilders = [];
         foreach ($restaurants->restaurants as $restaurant) {
             $templateActionBuilders = [
                 new PostbackTemplateActionBuilder(
                     'Lokasi',
-                    'name=' . $restaurant->name . '&address=' . $restaurant->address . '&lat=' . $restaurant->latitude . '&long=' . $restaurant->longitude
+                    'type=restaurant&event=location&name=' . $restaurant->name . '&address=' . $restaurant->address . '&lat=' . $restaurant->latitude . '&long=' . $restaurant->longitude
                 ),
                 new UriTemplateActionBuilder('Menu', $restaurant->menu_url),
                 new PostbackTemplateActionBuilder(
@@ -405,7 +359,7 @@ class LINEController extends Controller
             }
             $featuredImage = $restaurant->featured_image;
             if ($featuredImage == "") {
-                $featuredImage = null;
+                $featuredImage = 'https://b.zmtcdn.com/images/photoback.png';
             }
 
             $carouselColumnTemplateBuilder = new CarouselColumnTemplateBuilder(
@@ -417,18 +371,125 @@ class LINEController extends Controller
 
             $carouselColumnTemplateBuilders[] = $carouselColumnTemplateBuilder;
             if (sizeof($carouselColumnTemplateBuilders) == 5) {
-                break;
+                $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
+                $templateMessageBuilders[] = new TemplateMessageBuilder('Restoran di ' . $query, $carouselTemplateBuilder);
+                $carouselColumnTemplateBuilders = [];
             }
         }
 
-        $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
-        $templateMessageBuilders = [new TemplateMessageBuilder('Restoran di ' . $query, $carouselTemplateBuilder)];
+        if (sizeof($carouselColumnTemplateBuilders) > 0 && sizeof($carouselColumnTemplateBuilders) < 5) {
+            $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
+            $templateMessageBuilders[] = new TemplateMessageBuilder('Restoran di ' . $query, $carouselTemplateBuilder);
+        }
+
+        if (empty($templateMessageBuilders)) {
+            return $this->getEmptyRestaurantsMessage();
+        }
         return $templateMessageBuilders;
+    }
+
+    private function getRestaurantsByQuery($query) {
+        $restaurantController = new RestaurantController;
+        $response = $restaurantController->getByQuery($query);
+        if ($response->status() != 200) {
+            return $this->getErrorMessage();
+        }
+        $restaurants = json_decode($response->getContent());
+
+        $carouselColumnTemplateBuilders = [];
+        $templateMessageBuilders = [];
+        foreach ($restaurants->restaurants as $restaurant) {
+            $templateActionBuilders = [
+                new PostbackTemplateActionBuilder(
+                    'Lokasi',
+                    'type=restaurant&event=location&name=' . $restaurant->name . '&address=' . $restaurant->address . '&lat=' . $restaurant->latitude . '&long=' . $restaurant->longitude
+                ),
+                new UriTemplateActionBuilder('Menu', $restaurant->menu_url),
+                new PostbackTemplateActionBuilder(
+                    'Ulasan',
+                    'type=restaurant&event=review&id=' . $restaurant->id
+                )
+            ];
+
+            $aggregateRating = $restaurant->aggregate_rating;
+            if ($restaurant->aggregate_rating != 'Not rated') {
+                $aggregateRating .= '/5';
+            }
+            $name = $restaurant->name;
+            if (strlen($name) > 40) {
+                $name = substr($name, 0, 37) . '...';
+            }
+            $address = $restaurant->address;
+            $addressMaxLength = 60 - strlen($aggregateRating . "\n");
+            if (strlen($address) > $addressMaxLength) {
+                $address = substr($address, 0, $addressMaxLength - 3) . '...';
+            }
+            $featuredImage = $restaurant->featured_image;
+            if ($featuredImage == "") {
+                $featuredImage = 'https://b.zmtcdn.com/images/photoback.png';
+            }
+
+            $carouselColumnTemplateBuilder = new CarouselColumnTemplateBuilder(
+                $name,
+                $aggregateRating . "\n" . $address,
+                $featuredImage,
+                $templateActionBuilders
+            );
+
+            $carouselColumnTemplateBuilders[] = $carouselColumnTemplateBuilder;
+            if (sizeof($carouselColumnTemplateBuilders) == 5) {
+                $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
+                $templateMessageBuilders[] = new TemplateMessageBuilder('Restoran ' . $query, $carouselTemplateBuilder);
+                $carouselColumnTemplateBuilders = [];
+            }
+        }
+
+        if (sizeof($carouselColumnTemplateBuilders) > 0 && sizeof($carouselColumnTemplateBuilders) < 5) {
+            $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
+            $templateMessageBuilders[] = new TemplateMessageBuilder('Restoran ' . $query, $carouselTemplateBuilder);
+        }
+
+        if (empty($templateMessageBuilders)) {
+            return $this->getEmptyRestaurantsMessage();
+        }
+        return $templateMessageBuilders;
+    }
+
+    private function getKatooPythonResponse($text) {
+        $requestBody = ['message' => $text];
+        $response = $this->katooPythonClient->request('POST', 'https://katoo-python.herokuapp.com/get-reply', ['json' => $requestBody]);
+        if ($response->getStatusCode() != 200) {
+            return $this->getErrorMessage();
+        }
+
+        $responseBody = json_decode($response->getBody());
+        return $responseBody;
+    }
+
+    private function getChatterBotReply($text) {
+        $requestBody = ['message' => $text];
+        $response = $this->katooPythonClient->request('POST', 'http://katoo.pythonanywhere.com/get-reply', ['json' => $requestBody]);
+        if ($response->getStatusCode() != 200) {
+            return $this->getErrorMessage();
+        }
+
+        $responseBody = json_decode($response->getBody());
+        return [new TextMessageBuilder($responseBody->reply)];
     }
 
     private function getErrorMessage() {
         $errorMessageBuilders = [new TextMessageBuilder('Mohon maaf Katoo sedang lelah, silahkan coba beberapa saat lagi :)')];
         return $errorMessageBuilders;
+    }
+
+    private function getEmptyRestaurantsMessage() {
+        $emptyRestaurantMessageBuilders = [new TextMessageBuilder('Maaf restoran tidak ditemukan :(')];
+        return $emptyRestaurantMessageBuilders;
+    }
+
+    private function getEmptyReviewsMessage() {
+        $emptyReviewsMessageBuilders = [new TextMessageBuilder('Maaf ulasan tidak ada :(')];
+        return $emptyReviewsMessageBuilders;
     }
 
     private function getLimitedText($text, $limit) {

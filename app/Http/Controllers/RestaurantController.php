@@ -14,7 +14,7 @@ class RestaurantController extends Controller
     	$this->defaultOption = ['verify' => false];
     }
 
-    public function get($id) {
+    private function get($id) {
         $response = $this->client->request('GET', 'https://developers.zomato.com/api/v2.1/restaurant?res_id=' . $id, $this->defaultOption);
         $responseBody = json_decode($response->getBody());
         if ($responseBody->R->res_id > 0) {
@@ -23,7 +23,6 @@ class RestaurantController extends Controller
             } else {
                 $aggregate_rating = $responseBody->user_rating->aggregate_rating;
             }
-
             $restaurant = [
                 'id' => $id,
                 'name' => $responseBody->name,
@@ -38,26 +37,6 @@ class RestaurantController extends Controller
             return response()->json($restaurant);
         }
         return response('Invalid restaurant ID', 400);
-    }
-
-    public function getRating($id) {
-        $response = $this->get($id);
-        if ($response->status() != 200) {
-            return response($response->getContent(), $response->status());
-        }
-
-        $restaurant = json_decode($response->getContent());
-        return response()->json(["aggregate_rating" => $restaurant->aggregate_rating]);
-    }
-
-    public function getMenu($id) {
-        $response = $this->get($id);
-        if ($response->status() != 200) {
-            return response($response->getContent(), $response->status());
-        }
-
-        $restaurant = json_decode($response->getContent());
-        return response()->json(["menu_url" => $restaurant->menu_url]);
     }
 
     public function getReviews($id) {
@@ -118,7 +97,7 @@ class RestaurantController extends Controller
 
         $response = $this->getLocation($query);
         if ($response->status() != 200) {
-            return response($response->getContent(), $response->status());
+            return $this->getByQuery($query);
         }
 
         $location = json_decode($response->getContent());
@@ -166,5 +145,32 @@ class RestaurantController extends Controller
             $restaurants[] = $restaurant;
         }
         return $restaurants;
+    }
+
+    public function getByQuery($query) {
+        $response = $this->client->request('GET', 'https://developers.zomato.com/api/v2.1/search?q=' . $query, $this->defaultOption);
+        $responseBody = json_decode($response->getBody());
+        $restaurants = [];
+        foreach ($responseBody->restaurants as $res) {
+            if ($res->restaurant->user_rating->rating_text == "Not rated") {
+                $aggregate_rating = $res->restaurant->user_rating->rating_text;
+            } else {
+                $aggregate_rating = $res->restaurant->user_rating->aggregate_rating;
+            }
+
+            $restaurant = [
+                'id' => $res->restaurant->R->res_id,
+                'name' => $res->restaurant->name,
+                'url' => $res->restaurant->url,
+                'address' => $res->restaurant->location->address,
+                'latitude' => $res->restaurant->location->latitude,
+                'longitude' => $res->restaurant->location->longitude,
+                'aggregate_rating' => $aggregate_rating,
+                'menu_url' => $res->restaurant->menu_url,
+                'featured_image' => $res->restaurant->featured_image
+            ];
+            $restaurants[] = $restaurant;
+        }
+        return response()->json(["restaurants" => $restaurants]);
     }
 }
