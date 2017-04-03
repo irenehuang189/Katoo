@@ -10,6 +10,11 @@ use Illuminate\Support\Facades\DB;
 
 class DatabaseController extends Controller
 {
+    public function getTitleOfNowPlayingMovies(int $skipNum, int $takeNum) {
+        $result = DB::table('now_playing_infos')->skip($skipNum)->take($takeNum)->select('id', 'name', 'poster', 'genre')->get();
+        return $result;
+    }
+
     public function getTitleOfUpcomingMovies(int $skipNum, int $takeNum) {
         $result = DB::table('upcoming_infos')->skip($skipNum)->take($takeNum)->select('id', 'name', 'poster', 'genre')->get();
         return $result;
@@ -18,6 +23,17 @@ class DatabaseController extends Controller
     public function getDetailsById(int $dbId, string $state) {
         $table = ($state == 'upcoming') ? 'upcoming_infos' : 'now_playing_infos';
         $result = DB::table($table)->where('id', $dbId)->get();
+        return $result;
+    }
+
+    public function getDetailsByName(string $movieName) {
+        $result = DB::table('now_playing_infos')->where('name', $movieName)->first();
+        $result->state = 'nowplaying';
+
+        if(!$result) {
+            $result = DB::table('upcoming_infos')->where('name', $movieName)->first();
+        }
+        $result->state = 'upcoming';
         return $result;
     }
 

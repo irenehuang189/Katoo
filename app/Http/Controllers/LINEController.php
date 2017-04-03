@@ -64,11 +64,11 @@ class LINEController extends Controller
                 if ($event instanceof TextMessage) {
                     $text = $event->getText();
                     if (strtolower($text) == "tampilkan film yang sedang tayang") {
-                        $messages = [new TextMessageBuilder($text)];
+                        $messages = $this->getNowPlayingMovies();
                     } else if (strtolower($text) == "tampilkan film yang akan tayang") {
                         $messages = $this->getUpcomingMovies();
                     } else if (strtolower($text) == "cari film") {
-                        $messages = [new TextMessageBuilder($text)];
+                        $messages = [new TextMessageBuilder("Ketikkan nama film yang ingin dicari")];
                     } else if (strtolower($text) == "tampilkan restoran terdekat") {
                         $messages = [new TextMessageBuilder("Kirimkan lokasimu menggunakan fitur LINE location")];
                     } else if (strtolower($text) == "tampilkan restoran di suatu lokasi") {
@@ -146,10 +146,62 @@ class LINEController extends Controller
 
     public function test() {
         // $messages = $this->getMovieDetailsById('tt2771200', 2, 'nowplaying');
-        $messages = $this->getUpcomingMovies();
+        $messages = $this->getMovieReviews('tt0101414');
         foreach ($messages as $message) {
             $this->bot->pushMessage('U4927259e833db2ea3b9b8881c00cb786', $message); 
         }
+    }
+
+    public function getNowPlayingMovies() {
+        $movieController = new MovieController;
+        $response = $movieController->getNowPlaying(1); // TODO: call stored page in redis
+        if($response->status() != 200) {
+            return $this->getErrorMessage();
+        }
+        $movies = json_decode($response->getContent());
+
+        $moviesTitle = [];
+        $moviesCarouselColumns = [];
+        $end = sizeof($movies) < 5 ? sizeof($movies) : 5;
+        for ($i=0; $i<$end; $i++) { 
+            $movie = $movies[$i];
+
+            // Character limitation
+            $title = $this->getLimitedText($movie->title, 40);
+            $text = $this->getLimitedText($movie->genre, 60);
+            $poster = strlen($movie->poster) < 1000 ? $movie->poster : 'http://ia.media-imdb.com/images/G/01/imdb/images/nopicture/large/film-184890147._CB522736516_.png';
+            array_push($moviesTitle, $title);
+
+            // Buttons
+            $templateAction = [
+                new PostbackTemplateActionBuilder(
+                    'Telusuri', 
+                    'type=movie&event=detail&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=nowplaying',
+                    'Telusuri ' . $title
+                ),
+                new PostbackTemplateActionBuilder(
+                    'Review & Rating',
+                    'type=movie&event=review&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=nowplaying',
+                    'Review & rating ' . $title
+                ),
+                new PostbackTemplateActionBuilder(
+                    'Info Penayangan',
+                    'type=movie&event=schedule&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=nowplaying',
+                    'Info penayangan ' . $title
+                ),
+            ];
+
+            $movieCarouselColumn = new CarouselColumnTemplateBuilder($title, $text, $poster, $templateAction);
+            array_push($moviesCarouselColumns, $movieCarouselColumn);
+        }
+        // var_dump($moviesCarouselColumns);
+        $moviesCarousel = new CarouselTemplateBuilder($moviesCarouselColumns);
+        var_dump($moviesCarousel);
+
+        $altText = implode(', ', $moviesTitle);
+        $altText = $this->getLimitedText($altText, 400);
+        $moviesTemplateMessage = new TemplateMessageBuilder($altText, $moviesCarousel);
+        return [$moviesTemplateMessage];
     }
 
     public function getUpcomingMovies() {
@@ -169,7 +221,7 @@ class LINEController extends Controller
             // Character limitation
             $title = $this->getLimitedText($movie->title, 40);
             $text = $this->getLimitedText($movie->genre, 60);
-            $poster = strlen($movie->poster) < 1000 ? $movie->poster : 'https://pbs.twimg.com/profile_images/600060188872155136/st4Sp6Aw.jpg';
+            $poster = strlen($movie->poster) < 1000 ? $movie->poster : 'http://ia.media-imdb.com/images/G/01/imdb/images/nopicture/large/film-184890147._CB522736516_.png';
             array_push($moviesTitle, $title);
 
             // Buttons
@@ -186,10 +238,10 @@ class LINEController extends Controller
                 ),
                 new PostbackTemplateActionBuilder(
                     'Info Penayangan',
-                    'type=movie&event=schedule&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id,
+                    'type=movie&event=schedule&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=nowplaying',
                     'Info penayangan ' . $title
                 ),
-            ];
+            ]; 
 
             $movieCarouselColumn = new CarouselColumnTemplateBuilder($title, $text, $poster, $templateAction);
             array_push($moviesCarouselColumns, $movieCarouselColumn);
@@ -197,34 +249,9 @@ class LINEController extends Controller
 
         $moviesCarousel = new CarouselTemplateBuilder($moviesCarouselColumns);
         $altText = implode(', ', $moviesTitle);
+        $altText = $this->getLimitedText($altText, 400);
         $moviesTemplateMessage = new TemplateMessageBuilder($altText, $moviesCarousel);
         return [$moviesTemplateMessage];
-    }
-
-    public function getMovie() {
-        $movieController = new MovieController;
-        $response = $movieController->getDetails(293167);
-        if($response->status() != 200) {
-            return $this->getErrorMessage();
-        }
-        $movie = json_decode($response->getContent());
-
-        // Button
-        $templateActionButton = [
-            new MessageTemplateActionBuilder('Lihat Sinopsis', $movie->plot),
-            new UriTemplateActionBuilder('Telusuri lebih lanjut', $movie->url)
-        ];
-
-        $text = [
-            'IMDB Score: ' . $movie->imdb_rating,
-            'Genre: ' . $movie->genre,
-            'Duration: ' . $movie->duration,
-        ];
-        $movieButtonTemplate = new ButtonTemplateBuilder($movie->title, implode('\n', $text), $movie->poster_path, $templateActionButton);
-
-        $altText = 'Rincian film ' . $movie->title;
-        $movieTemplateMessage = new TemplateMessageBuilder($altText, $movieButtonTemplate);
-        return $movieTemplateMessage;
     }
 
     public function getMovieDetailsById($imdbId, $dbId, $state) {
@@ -251,20 +278,63 @@ class LINEController extends Controller
         return [$textMessage];
     }
 
+    public function getMovieDetailsByName($movieName) {
+        $movieController = new MovieController;
+        $response = $movieController->getDetailsByName($movieName);
+        if($response->status() != 200) {
+            return $this->getErrorMessage();
+        }
+
+        $movie = json_decode($response->getContent());
+        if(isset($movie->error)) {
+            $textMessages = new TextMessageBuilder($movie->error);
+            return [$textMessages];
+        }
+
+        // Character limitation
+        $title = $this->getLimitedText($movie->title, 40);
+        $text = $this->getLimitedText($movie->genre, 60);
+        $poster = strlen($movie->poster) < 1000 ? $movie->poster : 'http://ia.media-imdb.com/images/G/01/imdb/images/nopicture/large/film-184890147._CB522736516_.png';
+
+        $templateAction = [
+            new PostbackTemplateActionBuilder(
+                'Telusuri', 
+                'type=movie&event=detail&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=' . $movie->state,
+                'Telusuri ' . $title
+            ),
+            new PostbackTemplateActionBuilder(
+                'Review & Rating',
+                'type=movie&event=review&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=' . $movie->state,
+                'Review & rating ' . $title
+            ),
+            new PostbackTemplateActionBuilder(
+                'Info Penayangan',
+                'type=movie&event=schedule&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=' . $movie->state,
+                'Info penayangan ' . $title
+            ),
+        ]; 
+
+        $buttonTemplate = new ButtonTemplateBuilder($title, $text, $poster, $templateAction);
+        $altText = "Hasil pencarian " . $movieName;
+        $templateMessage = new TemplateMessageBuilder($altText, $buttonTemplate);
+        return [$templateMessage];
+    }
+
     public function getMovieReviews($imdbId) {
         $movieController = new MovieController;
         $response = $movieController->getReviews($imdbId);
         if($response->status() != 200) {
             return $this->getErrorMessage();
         }
-        $reviews = json_decode($response->getContent());
 
-        $review = $reviews[0];
-        if(!$review->id) {
-            $textMessage = new TextMessageBuilder($review->content);
+        $reviews = json_decode($response->getContent());
+        var_dump($reviews);
+        if(isset($reviews->error)) {
+            $textMessage = new TextMessageBuilder($reviews->error);
             return [$textMessage];
         }
 
+        $review = $reviews[0];
         $text = $review->content . ' (' . $review->url. ')';
         $start = 0;
         $textMessages = [];

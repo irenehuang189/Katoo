@@ -19,6 +19,20 @@ class MovieController extends Controller
         $this->repository = new \Tmdb\Repository\MovieRepository($this->client);
     }
 
+    public function getNowPlaying($pageNum) {
+        $dbController = new DatabaseController;
+        $cinemaNowPlaying = $dbController->getTitleOfNowPlayingMovies(5*($pageNum-1), 5*$pageNum);
+
+        $movies = [];
+        foreach($cinemaNowPlaying as $movie) {
+            // Get title, genre, poster path, imdb id from omdb api
+            $movie = $this->getDetailsByName($movie->name);
+            array_push($movies, $movie);
+        }
+        var_dump($movies);
+        return response()->json($movies);
+    }
+
     public function getUpcoming($pageNum) {
         $dbController = new DatabaseController;
         $cinemaUpcoming = $dbController->getTitleOfUpcomingMovies(5*($pageNum-1), 5*$pageNum);
@@ -26,61 +40,11 @@ class MovieController extends Controller
         $movies = [];
         foreach($cinemaUpcoming as $movie) {
             // Get title, genre, poster path, imdb id from omdb api
-            $client = new Client(['base_uri' => 'http://www.omdbapi.com']);
-            $query = http_build_query([
-                    't'     => $movie->name,
-                    'y'     => 2017
-                ]);
-            $omdbResponse = $client->request('GET', '?' . $query)->getBody();
-            $movieResponse = json_decode($omdbResponse);
-
-            if($movieResponse->Response == 'False') {
-                $movie = [
-                    'db_id'     => $movie->id,
-                    'imdb_id'   => null,
-                    'title'     => ucwords(strtolower($movie->name)),
-                    'poster'    => $movie->poster != NULL ? $movie->poster : 'https://pbs.twimg.com/profile_images/600060188872155136/st4Sp6Aw.jpg',
-                    'genre'     => $movie->genre != '' ? ucwords($movie->genre) : '-'
-                ];
-            } else {
-                $movie = [
-                    'db_id'     => $movie->id,
-                    'imdb_id'   => $movieResponse->imdbID,
-                    'title'     => $movieResponse->Title,
-                    'poster'    => $movieResponse->Poster,
-                    'genre'     => $movieResponse->Genre
-                ];
-            }
+            $movie = $this->getDetailsByName($movie->name);
             array_push($movies, $movie);
         }
+        var_dump($movies);
         return response()->json($movies);
-    }
-
-    public function getDetails($movieId) {
-        $tmdbResponse = $this->client->getMoviesApi()->getMovie($movieId);
-
-        $client = new Client(['base_uri' => 'http://www.omdbapi.com']);
-        $imdbResponse = $client->request('GET', '', [
-                'query' => ['i' => $tmdbResponse['imdb_id'],
-                            'tomatoes' => 'true'
-                            ],
-                'verify' => false
-            ])->getBody();
-
-        $detailsResponse = json_decode($imdbResponse);
-        $details = [
-            'tmdb_id'       => $tmdbResponse['id'],
-            'imdb_id'       => $tmdbResponse['imdb_id'],
-            'title'         => $detailsResponse->Title,
-            'genre'         => $detailsResponse->Genre,
-            'duration'      => $detailsResponse->Runtime,
-            'poster_path'   => $detailsResponse->Poster,
-            'plot'          => $detailsResponse->Plot,
-            'imdb_rating'   => $detailsResponse->imdbVotes,
-            'url'           => env('IMDB_BASE_URL', 'localhost') . $tmdbResponse['imdb_id'],
-            // 'tmdb_url'     => $tmdbResponse['tmdb_vote']
-        ];
-        return response()->json($details);
     }
 
     public function getDetailsById($imdbId, $dbId, $state) {
@@ -97,11 +61,11 @@ class MovieController extends Controller
             // Get details in database
             $dbController = new DatabaseController;
             $detailsResponse = $dbController->getDetailsById($dbId, $state);
-            return $detailsResponse;
             
             $details = [
                 'imdb_id'       => $imdbId,
                 'db_id'         => $dbId,
+                'state'         => $state,
                 'title'         => $detailsResponse->name,
                 'genre'         => $detailsResponse->genre,
                 'duration'      => $detailsResponse->duration,
@@ -112,6 +76,7 @@ class MovieController extends Controller
             $details = [
                 'imdb_id'       => $imdbId,
                 'db_id'         => $dbId,
+                'state'         => $state,
                 'title'         => $detailsResponse->Title,
                 'genre'         => $detailsResponse->Genre,
                 'duration'      => $detailsResponse->Runtime,
@@ -123,19 +88,68 @@ class MovieController extends Controller
         return response()->json($details);
     }
 
+    public function getDetailsByName($name) {
+        // Get movie state from database
+        $dbController = new DatabaseController;
+        $detailsDbResponse = $dbController->getDetailsByName($name);
+        $state = null;
+        if($detailsDbResponse) {
+            $state = $detailsDbResponse->state;
+        }
+
+        // Search movie to omdb
+        $client = new Client(['base_uri' => 'http://www.omdbapi.com']);
+        $query = http_build_query([
+            't'     => $name
+        ]);
+        $omdbResponse = $client->request('GET', '?' . $query)->getBody();
+        $detailsResponse = json_decode($omdbResponse);
+
+        if(!$detailsDbResponse && !$detailsResponse) {
+            return response()->json([
+                'error' => 'Nama film tidak ditemukan. Apakah kamu yakin itu judul film yang benar?'
+            ]);
+        }
+
+        if($detailsResponse->Response == 'False') {
+            return response()->json([
+                'db_id'     => $detailsDbResponse->id,
+                'imdb_id'   => null,
+                'state'     => $state,
+                'title'     => ucwords(strtolower($detailsDbResponse->name)),
+                'poster'    => $detailsDbResponse->poster != NULL ? $detailsDbResponse->poster : 'http://ia.media-imdb.com/images/G/01/imdb/images/nopicture/large/film-184890147._CB522736516_.png',
+                'genre'     => $detailsDbResponse->genre != '' ? ucwords(strtolower($detailsDbResponse->genre)) : '-'
+            ]);
+        }
+
+        return response()->json([
+            'db_id'     => $detailsDbResponse->id,
+            'imdb_id'   => $detailsResponse->imdbID,
+            'state'     => $state,
+            'title'     => $detailsResponse->Title,
+            'poster'    => $detailsResponse->Poster,
+            'genre'     => $detailsResponse->Genre
+        ]);
+    }
+
     public function getReviews($movieId) {
         $find = $this->client->getFindApi()->findBy($movieId, [
             'external_source' => 'imdb_id'
         ]);
         if(empty((array)$find['movie_results'])) {
-           return response()->json([
-                ['id' => null,
-                'content' => 'Maaf tidak ada review untuk film ini :(']
-           ]);
+            return response()->json([
+                'error' => 'Maaf tidak ada review untuk film ini :('
+            ]);
         }
 
         $tmdbId = $find['movie_results']['0']['id'];
         $response = $this->repository->getReviews($tmdbId);
+        if(!$response->getTotalPages()) {
+            return response()->json([
+                'error' => 'Maaf tidak ada review untuk film ini :('
+            ]);
+        }
+
         $reviews = [];
         foreach($response->toArray() as $reviewResponse) {
             $review = [
