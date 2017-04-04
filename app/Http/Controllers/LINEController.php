@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Redis;
 use Illuminate\Http\Request;
 use LINE\LINEBot;
 use LINE\LINEBot\Constant\HTTPHeader;
@@ -73,26 +74,49 @@ class LINEController extends Controller
                         $messages = [new TextMessageBuilder("Kirimkan lokasimu menggunakan fitur LINE location")];
                     } else if (strtolower($text) == "tampilkan restoran di suatu lokasi") {
                         $messages = [new TextMessageBuilder("Ketikkan nama lokasi yang diinginkan")];
+                        $redis = Redis::firstOrNew(['key' => 'source:' . $sourceId]);
+                        $redis->value = 'resto:location';
+                        $redis->save();
                     } else if (strtolower($text) == "cari restoran") {
                         $messages = [new TextMessageBuilder("Ketikkan nama restoran yang ingin dicari")];
+                        $redis = Redis::firstOrNew(['key' => 'source:' . $sourceId]);
+                        $redis->value = 'resto:name';
+                        $redis->save();
                     } else {
-                        $katooPythonResponseBody = $this->getKatooPythonResponse($text);
-                        $katooPythonCode = $katooPythonResponseBody->reply->code;
-                        if ($katooPythonCode == 1) {
-                            $location = $katooPythonResponseBody->reply->location;
-                            $restaurantName = $katooPythonResponseBody->reply->name;
+                        $stateRedis = Redis::where('key', 'source:' . $sourceId)->first();
+                        if ($stateRedis) {
+                            $stateValues = explode(':', $stateRedis->value);
+                            $feature = $stateValues[0];
+                            $featureMenu = $stateValues[1];
 
-                            if ($restaurantName) {
-                                $messages = $this->getRestaurantsByQuery($restaurantName);
-                            } else if ($location) {
-                                $messages = $this->getRestaurantsByLocationQuery($location);
-                            } else {
-                                $messages = $this->getErrorMessage();
+                            if ($feature == 'resto') {
+                                if ($featureMenu == 'location') {
+                                    $messages = $this->getRestaurantsByLocationQuery($text);
+                                    $stateRedis->delete();
+                                } else if ($featureMenu == 'name') {
+                                    $messages = $this->getRestaurantsByQuery($text);
+                                    $stateRedis->delete();
+                                }
                             }
-                        } else if ($katooPythonCode == 2) {
-                            $messages = [new TextMessageBuilder($text)];
                         } else {
-                            $messages = $this->getChatterBotReply($text);
+                            $katooPythonResponseBody = $this->getKatooPythonResponse($text);
+                            $katooPythonCode = $katooPythonResponseBody->reply->code;
+                            if ($katooPythonCode == 1) {
+                                $location = $katooPythonResponseBody->reply->location;
+                                $restaurantName = $katooPythonResponseBody->reply->name;
+
+                                if ($restaurantName) {
+                                    $messages = $this->getRestaurantsByQuery($restaurantName);
+                                } else if ($location) {
+                                    $messages = $this->getRestaurantsByLocationQuery($location);
+                                } else {
+                                    $messages = $this->getErrorMessage();
+                                }
+                            } else if ($katooPythonCode == 2) {
+                                $messages = [new TextMessageBuilder($text)];
+                            } else {
+                                $messages = $this->getChatterBotReply($text);
+                            }
                         }
                     }
                 } else if ($event instanceof LocationMessage) {
