@@ -28,12 +28,13 @@ class DatabaseController extends Controller
 
     public function getDetailsByName(string $movieName) {
         $result = DB::table('now_playing_infos')->where('name', $movieName)->first();
-        $result->state = 'nowplaying';
-
-        if(!$result) {
+        if($result) {
+            $result = (object) array_merge((array)$result, ['state' => 'nowplaying']);
+        } else {
             $result = DB::table('upcoming_infos')->where('name', $movieName)->first();
+            $result = (object) array_merge((array)$result, ['state' => 'upcoming']);
         }
-        $result->state = 'upcoming';
+        
         return $result;
     }
 
