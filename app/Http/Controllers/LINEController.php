@@ -219,7 +219,8 @@ class LINEController extends Controller
     public function test() {
         // $messages = $this->getMovieDetailsById('tt2771200', 2, 'nowplaying');
         // $messages = $this->getMovieReviews('tt0101414');
-        // $messages = 
+        // $messages = $this->getMovieDetailsByName('Danur');
+        $messages = $this->getUpcomingMovies();
         foreach ($messages as $message) {
             $this->bot->pushMessage('U4927259e833db2ea3b9b8881c00cb786', $message); 
         }
@@ -235,14 +236,11 @@ class LINEController extends Controller
 
         $moviesTitle = [];
         $moviesCarouselColumns = [];
-        $end = sizeof($movies) < 5 ? sizeof($movies) : 5;
-        for ($i=0; $i<$end; $i++) { 
-            $movie = $movies[$i];
-
+        foreach ($movies as $movie) {
             // Character limitation
             $title = $this->getLimitedText($movie->title, 40);
             $text = $this->getLimitedText($movie->genre, 60);
-            $poster = strlen($movie->poster) < 1000 ? $movie->poster : 'http://ia.media-imdb.com/images/G/01/imdb/images/nopicture/large/film-184890147._CB522736516_.png';
+            $poster = strlen($movie->poster) < 1000 ? $movie->poster : 'https://pbs.twimg.com/profile_images/600060188872155136/st4Sp6Aw.jpg';
             array_push($moviesTitle, $title);
 
             // Buttons
@@ -267,9 +265,7 @@ class LINEController extends Controller
             $movieCarouselColumn = new CarouselColumnTemplateBuilder($title, $text, $poster, $templateAction);
             array_push($moviesCarouselColumns, $movieCarouselColumn);
         }
-        // var_dump($moviesCarouselColumns);
         $moviesCarousel = new CarouselTemplateBuilder($moviesCarouselColumns);
-        var_dump($moviesCarousel);
 
         $altText = implode(', ', $moviesTitle);
         $altText = $this->getLimitedText($altText, 400);
@@ -287,14 +283,11 @@ class LINEController extends Controller
 
         $moviesTitle = [];
         $moviesCarouselColumns = [];
-        $end = sizeof($movies) < 5 ? sizeof($movies) : 5;
-        for ($i=0; $i<$end; $i++) { 
-            $movie = $movies[$i];
-
+        foreach ($movies as $movie) {
             // Character limitation
             $title = $this->getLimitedText($movie->title, 40);
             $text = $this->getLimitedText($movie->genre, 60);
-            $poster = strlen($movie->poster) < 1000 ? $movie->poster : 'http://ia.media-imdb.com/images/G/01/imdb/images/nopicture/large/film-184890147._CB522736516_.png';
+            $poster = strlen($movie->poster) < 1000 ? $movie->poster : 'https://pbs.twimg.com/profile_images/600060188872155136/st4Sp6Aw.jpg';
             array_push($moviesTitle, $title);
 
             // Buttons
@@ -314,7 +307,7 @@ class LINEController extends Controller
                     'type=movie&event=schedule&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=nowplaying',
                     'Info penayangan ' . $title
                 ),
-            ]; 
+            ];
 
             $movieCarouselColumn = new CarouselColumnTemplateBuilder($title, $text, $poster, $templateAction);
             array_push($moviesCarouselColumns, $movieCarouselColumn);
@@ -367,7 +360,7 @@ class LINEController extends Controller
         // Character limitation
         $title = $this->getLimitedText($movie->title, 40);
         $text = $this->getLimitedText($movie->genre, 60);
-        $poster = strlen($movie->poster) < 1000 ? $movie->poster : 'http://ia.media-imdb.com/images/G/01/imdb/images/nopicture/large/film-184890147._CB522736516_.png';
+        $poster = strlen($movie->poster) < 1000 ? $movie->poster : 'https://pbs.twimg.com/profile_images/600060188872155136/st4Sp6Aw.jpg';
 
         $templateAction = [
             new PostbackTemplateActionBuilder(
@@ -401,7 +394,6 @@ class LINEController extends Controller
         }
 
         $reviews = json_decode($response->getContent());
-        var_dump($reviews);
         if(isset($reviews->error)) {
             $textMessage = new TextMessageBuilder($reviews->error);
             return [$textMessage];
