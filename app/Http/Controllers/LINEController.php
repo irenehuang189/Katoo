@@ -63,61 +63,92 @@ class LINEController extends Controller
 
             if ($event instanceof MessageEvent) {
                 if ($event instanceof TextMessage) {
-                    $text = $event->getText();
-                    if (strtolower($text) == "tampilkan film yang sedang tayang") {
-                        $messages = $this->getNowPlayingMovies();
-                    } else if (strtolower($text) == "tampilkan film yang akan tayang") {
-                        $messages = $this->getUpcomingMovies();
-                    } else if (strtolower($text) == "cari film") {
-                        $messages = [new TextMessageBuilder("Ketikkan nama film yang ingin dicari")];
-                    } else if (strtolower($text) == "tampilkan restoran terdekat") {
-                        $messages = [new TextMessageBuilder("Kirimkan lokasimu menggunakan fitur LINE location")];
-                    } else if (strtolower($text) == "tampilkan restoran di suatu lokasi") {
-                        $messages = [new TextMessageBuilder("Ketikkan nama lokasi yang diinginkan")];
-                        $redis = Redis::firstOrNew(['key' => 'source:' . $sourceId]);
-                        $redis->value = 'resto:location';
-                        $redis->save();
-                    } else if (strtolower($text) == "cari restoran") {
-                        $messages = [new TextMessageBuilder("Ketikkan nama restoran yang ingin dicari")];
-                        $redis = Redis::firstOrNew(['key' => 'source:' . $sourceId]);
-                        $redis->value = 'resto:name';
-                        $redis->save();
-                    } else {
-                        $stateRedis = Redis::where('key', 'source:' . $sourceId)->first();
-                        if ($stateRedis) {
-                            $stateValues = explode(':', $stateRedis->value);
-                            $feature = $stateValues[0];
-                            $featureMenu = $stateValues[1];
+                    $text = strtolower($event->getText());
+                    switch ($text) {
+                        case "tampilkan film yang sedang tayang":
+                            $messages = $this->getNowPlayingMovies();
+                            break;
+                        case "tampilkan film yang akan tayang":
+                            $messages = $this->getUpcomingMovies();
+                            break;
+                        case "cari film":
+                            $messages = [new TextMessageBuilder("Ketikkan nama film yang ingin dicari")];
+                            $redis = Redis::firstOrNew(['key' => 'source:' . $sourceId]);
+                            $redis->value = 'movie:location';
+                            $redis->save();
+                            break;
+                        case "tampilkan restoran terdekat":
+                            $messages = [new TextMessageBuilder("Kirimkan lokasimu menggunakan fitur LINE location")];
+                            break;
+                        case "tampilkan restoran di suatu lokasi":
+                            $messages = [new TextMessageBuilder("Ketikkan nama lokasi yang diinginkan")];
+                            $redis = Redis::firstOrNew(['key' => 'source:' . $sourceId]);
+                            $redis->value = 'resto:location';
+                            $redis->save();
+                            break;
+                        case "cari restoran":
+                            $messages = [new TextMessageBuilder("Ketikkan nama restoran yang ingin dicari")];
+                            $redis = Redis::firstOrNew(['key' => 'source:' . $sourceId]);
+                            $redis->value = 'resto:name';
+                            $redis->save();
+                            break;
+                        default:
+                            $stateRedis = Redis::where('key', 'source:' . $sourceId)->first();
+                            if ($stateRedis) {
+                                $stateValues = explode(':', $stateRedis->value);
+                                $feature = $stateValues[0];
+                                $featureMenu = $stateValues[1];
 
-                            if ($feature == 'resto') {
-                                if ($featureMenu == 'location') {
-                                    $messages = $this->getRestaurantsByLocationQuery($text);
-                                    $stateRedis->delete();
-                                } else if ($featureMenu == 'name') {
-                                    $messages = $this->getRestaurantsByQuery($text);
-                                    $stateRedis->delete();
+                                if($feature == 'movie') {
+                                    switch ($featureMenu) {
+                                        case 'location':
+                                            $messages = $this->getMovieDetailsByName($text);
+                                            $stateRedis->delete();
+                                            break;
+                                    }
+                                } else if ($feature == 'resto') {
+                                    switch ($featureMenu) {
+                                        case 'location':
+                                            $messages = $this->getRestaurantsByLocationQuery($text);
+                                            $stateRedis->delete();
+                                            break;
+                                        case 'name':
+                                            $messages = $this->getRestaurantsByQuery($text);
+                                            $stateRedis->delete();
+                                            break;
+                                    }
                                 }
-                            }
-                        } else {
-                            $katooPythonResponseBody = $this->getKatooPythonResponse($text);
-                            $katooPythonCode = $katooPythonResponseBody->reply->code;
-                            if ($katooPythonCode == 1) {
-                                $location = $katooPythonResponseBody->reply->location;
-                                $restaurantName = $katooPythonResponseBody->reply->name;
-
-                                if ($restaurantName) {
-                                    $messages = $this->getRestaurantsByQuery($restaurantName);
-                                } else if ($location) {
-                                    $messages = $this->getRestaurantsByLocationQuery($location);
-                                } else {
-                                    $messages = $this->getErrorMessage();
-                                }
-                            } else if ($katooPythonCode == 2) {
-                                $messages = [new TextMessageBuilder($text)];
                             } else {
-                                $messages = $this->getChatterBotReply($text);
+                                $katooPythonResponseBody = $this->getKatooPythonResponse($text);
+                                $katooPythonCode = $katooPythonResponseBody->reply->code;
+                                switch ($katooPythonCode) {
+                                    case 1: // Restaurant
+                                        $location = $katooPythonResponseBody->reply->location;
+                                        $restaurantName = $katooPythonResponseBody->reply->name;
+
+                                        if ($restaurantName) {
+                                            $messages = $this->getRestaurantsByQuery($restaurantName);
+                                        } else if ($location) {
+                                            $messages = $this->getRestaurantsByLocationQuery($location);
+                                        } else {
+                                            $messages = $this->getErrorMessage();
+                                        }
+                                        break;
+                                    
+                                    case 2: // Movie
+                                        $movieName = $katooPythonResponseBody->reply->name;
+                                        if($movieName) {
+                                            $messages = $this->getMovieDetailsByName($movieName);
+                                        } else {
+                                            $messages = $this->getErrorMessage();
+                                        }
+                                        break;
+                                    default: // Send text to chatterbot
+                                        $messages = $this->getChatterBotReply($text);
+                                        break;
+                                }
                             }
-                        }
+                            break;
                     }
                 } else if ($event instanceof LocationMessage) {
                     $messages = $this->getNearbyRestaurants($event->getLatitude(), $event->getLongitude());
@@ -170,7 +201,8 @@ class LINEController extends Controller
 
     public function test() {
         // $messages = $this->getMovieDetailsById('tt2771200', 2, 'nowplaying');
-        $messages = $this->getMovieReviews('tt0101414');
+        // $messages = $this->getMovieReviews('tt0101414');
+        // $messages = 
         foreach ($messages as $message) {
             $this->bot->pushMessage('U4927259e833db2ea3b9b8881c00cb786', $message); 
         }
