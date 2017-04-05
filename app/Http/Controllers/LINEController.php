@@ -200,7 +200,8 @@ class LINEController extends Controller
                             case 'cinema':
                                 $imdbId = $query['imdb_id'];
                                 $dbId = $query['db_id'];
-                                $messages = $this->getMovieCinema($imdbId, $dbId);
+                                $page = isset($query['page']) ? $query['page'] : 1;
+                                $messages = $this->getMovieCinema($imdbId, $dbId, $page);
                                 break;
                             case 'schedule':
                                 $imdbId = $query['imdb_id'];
@@ -254,11 +255,11 @@ class LINEController extends Controller
         // $messages = $this->getMovieDetailsById('tt2771200', 2, 'nowplaying');
         // $messages = $this->getMovieDetailsById('', '', '');
         // $messages = $this->getMovieReviews('tt0101414');
-        $messages = $this->getUpcomingMovies(2);
+        // $messages = $this->getUpcomingMovies(2);
         // $messages = $this->getMovieDetailsByName('zzzksls');
         // $messages = $this->getMovieDetailsByName(' ');
         // $messages = $this->getMovieReviews('');
-        // $messages = $this->getMovieCinema('tt5882416', '');
+        $messages = $this->getMovieCinema('tt5882416', '2', 1);
         // $messages = $this->getNowPlayingMovies(3);
         foreach ($messages as $message) {
             $this->bot->pushMessage('U4927259e833db2ea3b9b8881c00cb786', $message); 
@@ -494,7 +495,7 @@ class LINEController extends Controller
         return $textMessages;
     }
 
-    public function getMovieCinema($imdbId, $dbId) {
+    public function getMovieCinema($imdbId, $dbId, $page) {
         $movieController = new MovieController;
         $response = $movieController->getCinema($dbId);
         if($response->status() != 200) {
@@ -508,12 +509,19 @@ class LINEController extends Controller
         }
 
         $templateAction = [];
-        $end = sizeof($cinema) < 4 ? sizeof($cinema) : 4; // TODO: Looping until all cinemas has been send
-        for ($i=0; $i<$end; $i++) { 
+        $start = 3 * ($page-1);
+        $end = sizeof($cinema) < (3*$page) ? sizeof($cinema) : (3*$page); // TODO: Looping until all cinemas has been send
+        for ($i=$start; $i<$end; $i++) { 
             array_push($templateAction, new PostbackTemplateActionBuilder(
                 $cinema[$i],
                 'type=movie&event=schedule&imdb_id=' . $imdbId . '&db_id=' . $dbId . '&city=' . $cinema[$i]
                 // 'Jadwal penayangan di ' . $cinema[$i]
+            ));
+        }
+        if ($end < sizeof($cinema) ) { // Show others button
+            array_push($templateAction, new PostbackTemplateActionBuilder(
+                'Lainnya',
+                'type=movie&event=cinema&imdb_id=' . $imdbId . '&db_id=' . $dbId . '&page=' . ($page+1)
             ));
         }
         $buttonTemplate = new ButtonTemplateBuilder(null, 'Di mana kamu ingin menonton?', null, $templateAction);

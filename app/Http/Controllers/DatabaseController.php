@@ -77,18 +77,16 @@ class DatabaseController extends Controller
             'Tangerang' => ['Teraskota', 'Grand Dadap City', 'Ecoplaza Cikupa'],
             'Bekasi'    => ['Bekasi Cyber Park', 'Grand Galaxi Park'],
             'Batam'     => ['Kepri Mall', 'Harbour Bay'],
-            'Yogyakarta'=> ['Jwalk Mall', 'Hartono Mall']
-        ];
-        $other = [
-            'Balikpapan'=> 'Plaza Balikpapan',
-            'Cirebon'   => 'Grage City Mall',
-            'Surabaya'  => 'Marvell City',
-            'Karawang'  => 'Festive Walk',
-            'Manado'    => 'Kawanua Mall',
-            'Purwokerto'=> 'Rita Supermall',
-            'Mojokerto' => 'Sunrise Mall',
-            'Medan'     => 'Focal Point Mall',
-            'Palembang' => 'Social Market Palembang'
+            'Yogyakarta'=> ['Jwalk Mall', 'Hartono Mall'],
+            'Balikpapan'=> ['Plaza Balikpapan'],
+            'Cirebon'   => ['Grage City Mall'],
+            'Surabaya'  => ['Marvell City'],
+            'Karawang'  => ['Festive Walk'],
+            'Manado'    => ['Kawanua Mall'],
+            'Purwokerto'=> ['Rita Supermall'],
+            'Mojokerto' => ['Sunrise Mall'],
+            'Medan'     => ['Focal Point Mall'],
+            'Palembang' => ['Social Market Palembang']
         ];
 
         $cities = [];
@@ -111,18 +109,16 @@ class DatabaseController extends Controller
             'Tangerang' => ['Teraskota', 'Grand Dadap City', 'Ecoplaza Cikupa'],
             'Bekasi'    => ['Bekasi Cyber Park', 'Grand Galaxi Park'],
             'Batam'     => ['Kepri Mall', 'Harbour Bay'],
-            'Yogyakarta'=> ['Jwalk Mall', 'Hartono Mall']
-        ];
-        $other = [
-            'Balikpapan'=> 'Plaza Balikpapan',
-            'Cirebon'   => 'Grage City Mall',
-            'Surabaya'  => 'Marvell City',
-            'Karawang'  => 'Festive Walk',
-            'Manado'    => 'Kawanua Mall',
-            'Purwokerto'=> 'Rita Supermall',
-            'Mojokerto' => 'Sunrise Mall',
-            'Medan'     => 'Focal Point Mall',
-            'Palembang' => 'Social Market Palembang'
+            'Yogyakarta'=> ['Jwalk Mall', 'Hartono Mall'],
+            'Balikpapan'=> ['Plaza Balikpapan'],
+            'Cirebon'   => ['Grage City Mall'],
+            'Surabaya'  => ['Marvell City'],
+            'Karawang'  => ['Festive Walk'],
+            'Manado'    => ['Kawanua Mall'],
+            'Purwokerto'=> ['Rita Supermall'],
+            'Mojokerto' => ['Sunrise Mall'],
+            'Medan'     => ['Focal Point Mall'],
+            'Palembang' => ['Social Market Palembang']
         ];
 
         return $data[$city];
