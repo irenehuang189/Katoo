@@ -154,7 +154,6 @@ class MovieController extends Controller
         // Retrieve movies from database
         $dbController = new DatabaseController;
         $detailsDbResponse = $dbController->getDetailsByName($name);
-        var_dump($detailsDbResponse);
 
         // Search movie to omdb
         $client = new Client(['base_uri' => 'http://www.omdbapi.com']);
@@ -163,7 +162,6 @@ class MovieController extends Controller
         ]);
         $omdbResponse = $client->request('GET', '?' . $query)->getBody();
         $detailsResponse = json_decode($omdbResponse);
-        var_dump($detailsResponse);
 
         if(!$detailsDbResponse && !$detailsResponse) {
             return response()->json([
@@ -240,6 +238,12 @@ class MovieController extends Controller
     }
 
     public function getCinema($dbId) {
+        if(!$dbId) { // Avoid error on heroku
+            return response()->json([
+                'error' => 'Maaf, belum ada penayangan film ini di hari ini :('
+            ]);
+        }
+
         $dbController = new DatabaseController;
         $cinema = $dbController->getCinema($dbId);
         if(!$cinema) {
