@@ -68,9 +68,17 @@ class LINEController extends Controller
                     switch ($text) {
                         case "tampilkan film yang sedang tayang":
                             $messages = $this->getNowPlayingMovies();
+                            $redis = Redis::where('key', 'source:' . $sourceId)->first();
+                            if ($redis) {
+                                $redis->delete();
+                            }
                             break;
                         case "tampilkan film yang akan tayang":
                             $messages = $this->getUpcomingMovies();
+                            $redis = Redis::where('key', 'source:' . $sourceId)->first();
+                            if ($redis) {
+                                $redis->delete();
+                            }
                             break;
                         case "cari film":
                             $messages = [new TextMessageBuilder("Ketikkan nama film yang ingin dicari")];
@@ -80,6 +88,10 @@ class LINEController extends Controller
                             break;
                         case "tampilkan restoran terdekat":
                             $messages = [new TextMessageBuilder("Kirimkan lokasimu menggunakan fitur LINE location")];
+                            $redis = Redis::where('key', 'source:' . $sourceId)->first();
+                            if ($redis) {
+                                $redis->delete();
+                            }
                             break;
                         case "tampilkan restoran di suatu lokasi":
                             $messages = [new TextMessageBuilder("Ketikkan nama lokasi yang diinginkan")];
@@ -705,7 +717,7 @@ class LINEController extends Controller
                 new UriTemplateActionBuilder('Menu', $restaurant->menu_url),
                 new PostbackTemplateActionBuilder(
                     'Ulasan',
-                    'type=restaurant&event=review&id=' . $restaurant->i
+                    'type=restaurant&event=review&id=' . $restaurant->id . '&name=' . $restaurant->name
                 )
             ];
 
