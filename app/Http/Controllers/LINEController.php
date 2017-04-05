@@ -20,6 +20,7 @@ use LINE\LINEBot\MessageBuilder\LocationMessageBuilder;
 use LINE\LINEBot\MessageBuilder\TemplateBuilder\ButtonTemplateBuilder;
 use LINE\LINEBot\MessageBuilder\TemplateBuilder\CarouselColumnTemplateBuilder;
 use LINE\LINEBot\MessageBuilder\TemplateBuilder\CarouselTemplateBuilder;
+use LINE\LINEBot\MessageBuilder\TemplateBuilder\ConfirmTemplateBuilder;
 use LINE\LINEBot\MessageBuilder\TemplateMessageBuilder;
 use LINE\LINEBot\MessageBuilder\TextMessageBuilder;
 use LINE\LINEBot\TemplateActionBuilder\PostbackTemplateActionBuilder;
@@ -151,43 +152,59 @@ class LINEController extends Controller
                             break;
                     }
                 } else if ($event instanceof LocationMessage) {
-                    $messages = $this->getNearbyRestaurants($event->getLatitude(), $event->getLongitude());
+                    $messages = $this->getNearbyRestaurants($event->getLatitude(), $event->getLongitude(), 1);
                 }
             } else if ($event instanceof PostbackEvent) {
                 parse_str($event->getPostbackData(), $query);
-                if($query['type'] == 'movie') {
-                    switch ($query['event']) {
-                        case 'detail':
-                            $imdbId = $query['imdb_id'];
-                            $dbId = $query['db_id'];
-                            $state = $query['state'];
-                            $messages = $this->getMovieDetailsById($imdbId, $dbId, $state);
-                            break;
-                        case 'review':
-                            $imdbId = $query['imdb_id'];
-                            $messages = $this->getMovieReviews($imdbId);
-                            break;
-                        case 'cinema':
-                            $imdbId = $query['imdb_id'];
-                            $dbId = $query['db_id'];
-                            $messages = $this->getMovieCinema($imdbId, $dbId);
-                            break;
-                        case 'schedule':
-                            $imdbId = $query['imdb_id'];
-                            $dbId = $query['db_id'];
-                            $city = $query['city'];
-                            $messages = $this->getMovieSchedule($imdbId, $dbId, $city);
-                            break;
-                        default:
-                            # code...
-                            break;
-                    }
-                } else if ($query['type'] == 'restaurant') {
-                    if ($query['event'] == 'location') {
-                        $messages = $this->getLocation($query['lat'], $query['long'], $query['name'], $query['address']);
-                    } else if ($query['event'] == 'review') {
-                        $messages = $this->getRestaurantReviews($query['id']);
-                    }
+                switch ($query['type']) {
+                    case 'movie':
+                        switch ($query['event']) {
+                            case 'detail':
+                                $imdbId = $query['imdb_id'];
+                                $dbId = $query['db_id'];
+                                $state = $query['state'];
+                                $messages = $this->getMovieDetailsById($imdbId, $dbId, $state);
+                                break;
+                            case 'review':
+                                $imdbId = $query['imdb_id'];
+                                $messages = $this->getMovieReviews($imdbId);
+                                break;
+                            case 'cinema':
+                                $imdbId = $query['imdb_id'];
+                                $dbId = $query['db_id'];
+                                $messages = $this->getMovieCinema($imdbId, $dbId);
+                                break;
+                            case 'schedule':
+                                $imdbId = $query['imdb_id'];
+                                $dbId = $query['db_id'];
+                                $city = $query['city'];
+                                $messages = $this->getMovieSchedule($imdbId, $dbId, $city);
+                                break;
+                            default:
+                                # code...
+                                break;
+                        }
+                        break;
+                    case 'restaurant':
+                        switch ($query['event']) {
+                            case 'location':
+                                $messages = $this->getLocation($query['lat'], $query['long'], $query['name'], $query['address']);
+                                break;
+                            case 'review':
+                                $messages = $this->getRestaurantReviews($query['id']);
+                                break;
+                            case 'page':
+                                switch ($query['feature']) {
+                                    case 'nearby':
+                                        $messages = $this->getNearbyRestaurants($query['lat'], $query['long'], $query['page']);
+                                        break;
+                                    case 'stop':
+                                        $messages = $this->getStopNextPageMessage();
+                                        break;
+                                }
+                                break;
+                        }
+                        break;
                 }
             }
 
@@ -497,7 +514,7 @@ class LINEController extends Controller
         return $textMessageBuilders;
     }
 
-    private function getNearbyRestaurants($lat, $long) {
+    private function getNearbyRestaurants($lat, $long, $page) {
         $restaurantController = new RestaurantController;
         $response = $restaurantController->getNearby($lat, $long);
         if ($response->status() != 200) {
@@ -506,8 +523,14 @@ class LINEController extends Controller
         $restaurants = json_decode($response->getContent());
 
         $carouselColumnTemplateBuilders = [];
-        $templateMessageBuilders = [];
-        foreach ($restaurants->nearby_restaurants as $restaurant) {
+        $numRestaurants = sizeof($restaurants->nearby_restaurants);
+        for ($i = 0; $i < 5; $i++) {
+            $index = $i + ($page - 1) * 5;
+            if ($index >= $numRestaurants) {
+                break;
+            }
+            $restaurant = $restaurants->nearby_restaurants[$index];
+
             $templateActionBuilders = [
                 new PostbackTemplateActionBuilder(
                     'Lokasi',
@@ -546,21 +569,28 @@ class LINEController extends Controller
             );
 
             $carouselColumnTemplateBuilders[] = $carouselColumnTemplateBuilder;
-            if (sizeof($carouselColumnTemplateBuilders) == 5) {
-                $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
-                $templateMessageBuilders[] = new TemplateMessageBuilder('Restoran Terdekat', $carouselTemplateBuilder);
-                $carouselColumnTemplateBuilders = [];
-            }
         }
 
-        if (sizeof($carouselColumnTemplateBuilders) > 0 && sizeof($carouselColumnTemplateBuilders) < 5) {
+        if (sizeof($carouselColumnTemplateBuilders) > 0) {
             $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
-            $templateMessageBuilders[] = new TemplateMessageBuilder('Restoran Terdekat', $carouselTemplateBuilder);
-        }
-
-        if (empty($templateMessageBuilders)) {
+            $templateMessageBuilders = [new TemplateMessageBuilder('Restoran Terdekat', $carouselTemplateBuilder)];
+        } else {
             return $this->getEmptyRestaurantsMessage();
         }
+
+        if ($numRestaurants > ($page * 5)) {
+            $templateActionBuilders = [new PostbackTemplateActionBuilder(
+                'Ya',
+                'type=restaurant&event=page&feature=nearby&page=' . ($page + 1) . '&lat=' . $lat . '&long=' . $long
+            )];
+            $templateActionBuilders[] = new PostbackTemplateActionBuilder(
+                'Tidak',
+                'type=restaurant&event=page&feature=stop'
+            );
+            $confirmTemplateBuilder = new ConfirmTemplateBuilder('Halaman selanjutnya?', $templateActionBuilders);
+            $templateMessageBuilders[] = new TemplateMessageBuilder('Halaman selanjutnya?', $confirmTemplateBuilder);
+        }
+
         return $templateMessageBuilders;
     }
 
@@ -733,6 +763,11 @@ class LINEController extends Controller
     private function getEmptyReviewsMessage() {
         $emptyReviewsMessageBuilders = [new TextMessageBuilder('Maaf ulasan tidak ada :(')];
         return $emptyReviewsMessageBuilders;
+    }
+
+    private function getStopNextPageMessage() {
+        $message = [new TextMessageBuilder("Oke :D\nSilahkan pilih fitur lain yang diinginkan")];
+        return $message;
     }
 
     private function getLimitedText($text, $limit) {
