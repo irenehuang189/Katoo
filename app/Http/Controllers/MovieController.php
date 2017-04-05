@@ -112,35 +112,42 @@ class MovieController extends Controller
             ])->getBody();
         $detailsResponse = json_decode($omdbResponse);
 
+        // Declare variables
+        $title = $genre = $duration = $imdbRating = null;
+        $ratings = [];
+
         if($detailsResponse->Response == 'False') {
             // Get details in database
             $dbController = new DatabaseController;
-            $detailsResponse = $dbController->getDetailsById($dbId, $state);
+            $detailsDbResponse = $dbController->getDetailsById($dbId, $state);
+            if($detailsDbResponse) {
+                $title = $detailsDbResponse->name;
+                $genre = $detailsDbResponse->genre;
+                $duration = $detailsDbResponse->duration;
+            } else {
+                return response()->json([
+                    'error' => 'Maaf informasi film belum ada untuk saat ini. Coba lagi ya lain waktu! :)'
+                ]);
+            }
             
-            $details = [
-                'imdb_id'       => $imdbId,
-                'db_id'         => $dbId,
-                'state'         => $state,
-                'title'         => $detailsResponse->name,
-                'genre'         => $detailsResponse->genre,
-                'duration'      => $detailsResponse->duration,
-                'imdb_rating'   => $detailsResponse->imdbRating,
-                'ratings'       => null
-            ];
         } else {
-            $details = [
-                'imdb_id'       => $imdbId,
-                'db_id'         => $dbId,
-                'state'         => $state,
-                'title'         => $detailsResponse->Title,
-                'genre'         => $detailsResponse->Genre,
-                'duration'      => $detailsResponse->Runtime,
-                'imdb_rating'   => $detailsResponse->imdbRating,
-                'ratings'       => $detailsResponse->Ratings
-            ];
+            $title = $detailsResponse->Title;
+            $genre = $detailsResponse->Genre;
+            $duration = $detailsResponse->Runtime;
+            $imdbRating = $detailsResponse->imdbRating;
+            $ratings = $detailsResponse->Ratings;
         }
 
-        return response()->json($details);
+        return response()->json([
+            'imdb_id'       => $imdbId,
+            'db_id'         => $dbId,
+            'state'         => $state,
+            'title'         => $title,
+            'genre'         => $genre,
+            'duration'      => $duration,
+            'imdb_rating'   => $imdbRating,
+            'ratings'       => $ratings
+        ]);
     }
 
     public function getDetailsByName($name) {
@@ -156,7 +163,7 @@ class MovieController extends Controller
         $omdbResponse = $client->request('GET', '?' . $query)->getBody();
         $detailsResponse = json_decode($omdbResponse);
 
-        if(!$detailsDbResponse && !$detailsResponse) { // imdb gaada, db gaada
+        if(!$detailsDbResponse && !$detailsResponse) {
             return response()->json([
                 'error' => 'Nama film tidak ditemukan. Apakah kamu yakin itu judul film yang benar?'
             ]);
