@@ -113,6 +113,11 @@ class MovieController extends Controller
     }
 
     public function getDetailsById($imdbId, $dbId, $state) {
+        // Retrieve movie from database
+        $dbController = new DatabaseController;
+        $detailsDbResponse = $dbController->getDetailsById($dbId, $state);
+
+        // Search movie from omdb
         $client = new Client(['base_uri' => 'http://www.omdbapi.com']);
         $omdbResponse = $client->request('GET', '', [
                 'query' => ['i'         => $imdbId,
@@ -122,30 +127,33 @@ class MovieController extends Controller
             ])->getBody();
         $detailsResponse = json_decode($omdbResponse);
 
+        if(!$detailsDbResponse && ($detailsResponse->Response == 'False')) {
+            return response()->json([
+                'error' => 'Maaf informasi film belum ada untuk saat ini. Coba lagi ya lain waktu! :)'
+            ]);
+        }
+
         // Declare variables
-        $title = $genre = $duration = $imdbRating = null;
+        $title = $genre = $duration = $imdbRating = $plot = $video = null;
+        $url = 'N/A';
         $ratings = [];
 
-        if($detailsResponse->Response == 'False') {
-            // Get details in database
-            $dbController = new DatabaseController;
-            $detailsDbResponse = $dbController->getDetailsById($dbId, $state);
-            if($detailsDbResponse) {
-                $title = $detailsDbResponse->name;
-                $genre = $detailsDbResponse->genre;
-                $duration = $detailsDbResponse->duration;
-            } else {
-                return response()->json([
-                    'error' => 'Maaf informasi film belum ada untuk saat ini. Coba lagi ya lain waktu! :)'
-                ]);
-            }
-            
-        } else {
+        if($detailsDbResponse) {
+            $title = ucwords(strtolower($detailsDbResponse->name));
+            $genre = ucwords(strtolower($detailsDbResponse->genre));
+            $duration = $detailsDbResponse->duration;
+            $plot = $detailsDbResponse->plot;
+            $video = $detailsDbResponse->trailer;
+        }
+
+        if($detailsResponse && $detailsResponse->Response != 'False') {
             $title = $detailsResponse->Title;
             $genre = $detailsResponse->Genre;
             $duration = $detailsResponse->Runtime;
             $imdbRating = $detailsResponse->imdbRating;
             $ratings = $detailsResponse->Ratings;
+            $plot = $detailsResponse->Plot;
+            $url = $detailsResponse->Website;
         }
 
         return response()->json([
@@ -156,16 +164,19 @@ class MovieController extends Controller
             'genre'         => $genre,
             'duration'      => $duration,
             'imdb_rating'   => $imdbRating,
-            'ratings'       => $ratings
+            'ratings'       => $ratings,
+            'plot'          => $plot,
+            'url'           => $url,
+            'video'         => $video
         ]);
     }
 
     public function getDetailsByName($name) {
-        // Retrieve movies from database
+        // Retrieve movie from database
         $dbController = new DatabaseController;
         $detailsDbResponse = $dbController->getDetailsByName($name);
 
-        // Search movie to omdb
+        // Search movie from omdb
         $client = new Client(['base_uri' => 'http://www.omdbapi.com']);
         $query = http_build_query([
             't'     => $name

@@ -252,14 +252,14 @@ class LINEController extends Controller
     }
 
     public function test() {
-        // $messages = $this->getMovieDetailsById('tt2771200', 2, 'nowplaying');
+        $messages = $this->getMovieDetailsById('tt2771200', 2, 'nowplaying');
         // $messages = $this->getMovieDetailsById('', '', '');
         // $messages = $this->getMovieReviews('tt0101414');
         // $messages = $this->getUpcomingMovies(2);
         // $messages = $this->getMovieDetailsByName('zzzksls');
         // $messages = $this->getMovieDetailsByName(' ');
         // $messages = $this->getMovieReviews('');
-        $messages = $this->getMovieCinema('tt5882416', '2', 1);
+        // $messages = $this->getMovieCinema('tt5882416', '2', 1);
         // $messages = $this->getNowPlayingMovies(3);
         foreach ($messages as $message) {
             $this->bot->pushMessage('U4927259e833db2ea3b9b8881c00cb786', $message); 
@@ -406,6 +406,7 @@ class LINEController extends Controller
             return [$textMessages];
         }
 
+        // First message
         $identity = [
             'Judul: ' . $movie->title,
             'Genre: ' . $movie->genre,
@@ -421,9 +422,18 @@ class LINEController extends Controller
             array_push($ratings, '- ' . $rating->Source . ' ' . $rating->Value);
         }
         $text = implode("\n", $identity) . "\n" . implode("\n", $ratings);
-
         $textMessage = new TextMessageBuilder($text);
-        return [$textMessage];
+
+        // Second message
+        $addInformation = [
+            "Plot: \n" . $movie->plot,
+            "Trailer: " . $movie->video,
+            "Informasi lebih lanjut: " . $movie->url,
+        ];
+        $text2 = $this->getLimitedText(implode("\n\n", $addInformation), 2000);
+        $textMessage2 = new TextMessageBuilder($text2);
+
+        return [$textMessage, $textMessage2];
     }
 
     public function getMovieDetailsByName($movieName) {
