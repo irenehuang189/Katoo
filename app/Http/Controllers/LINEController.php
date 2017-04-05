@@ -114,7 +114,7 @@ class LINEController extends Controller
                                             $stateRedis->delete();
                                             break;
                                         case 'name':
-                                            $messages = $this->getRestaurantsByQuery($text);
+                                            $messages = $this->getRestaurantsByQuery($text, 1);
                                             $stateRedis->delete();
                                             break;
                                     }
@@ -128,7 +128,7 @@ class LINEController extends Controller
                                         $restaurantName = $katooPythonResponseBody->reply->name;
 
                                         if ($restaurantName) {
-                                            $messages = $this->getRestaurantsByQuery($restaurantName);
+                                            $messages = $this->getRestaurantsByQuery($restaurantName, 1);
                                         } else if ($location) {
                                             $messages = $this->getRestaurantsByLocationQuery($location, 1);
                                         } else {
@@ -200,6 +200,9 @@ class LINEController extends Controller
                                         break;
                                     case 'location':
                                         $messages = $this->getRestaurantsByLocationQuery($query['location'], $query['page']);
+                                        break;
+                                    case 'name':
+                                        $messages = $this->getRestaurantsByQuery($query['name'], $query['page']);
                                         break;
                                     case 'stop':
                                         $messages = $this->getStopNextPageMessage();
@@ -677,7 +680,7 @@ class LINEController extends Controller
         return $templateMessageBuilders;
     }
 
-    private function getRestaurantsByQuery($query) {
+    private function getRestaurantsByQuery($query, $page) {
         $restaurantController = new RestaurantController;
         $response = $restaurantController->getByQuery($query);
         if ($response->status() != 200) {
@@ -686,8 +689,14 @@ class LINEController extends Controller
         $restaurants = json_decode($response->getContent());
 
         $carouselColumnTemplateBuilders = [];
-        $templateMessageBuilders = [];
-        foreach ($restaurants->restaurants as $restaurant) {
+        $numRestaurants = sizeof($restaurants->restaurants);
+        for ($i = 0; $i < 5; $i++) {
+            $index = $i + ($page - 1) * 5;
+            if ($index >= $numRestaurants) {
+                break;
+            }
+            $restaurant = $restaurants->restaurants[$index];
+
             $templateActionBuilders = [
                 new PostbackTemplateActionBuilder(
                     'Lokasi',
@@ -726,21 +735,28 @@ class LINEController extends Controller
             );
 
             $carouselColumnTemplateBuilders[] = $carouselColumnTemplateBuilder;
-            if (sizeof($carouselColumnTemplateBuilders) == 5) {
-                $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
-                $templateMessageBuilders[] = new TemplateMessageBuilder('Restoran ' . $query, $carouselTemplateBuilder);
-                $carouselColumnTemplateBuilders = [];
-            }
         }
 
-        if (sizeof($carouselColumnTemplateBuilders) > 0 && sizeof($carouselColumnTemplateBuilders) < 5) {
+        if (sizeof($carouselColumnTemplateBuilders) > 0) {
             $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
             $templateMessageBuilders[] = new TemplateMessageBuilder('Restoran ' . $query, $carouselTemplateBuilder);
-        }
-
-        if (empty($templateMessageBuilders)) {
+        } else {
             return $this->getEmptyRestaurantsMessage();
         }
+
+        if ($numRestaurants > ($page * 5)) {
+            $templateActionBuilders = [new PostbackTemplateActionBuilder(
+                'Ya',
+                'type=restaurant&event=page&feature=name&page=' . ($page + 1) . '&name=' . $query
+            )];
+            $templateActionBuilders[] = new PostbackTemplateActionBuilder(
+                'Tidak',
+                'type=restaurant&event=page&feature=stop'
+            );
+            $confirmTemplateBuilder = new ConfirmTemplateBuilder('Halaman selanjutnya?', $templateActionBuilders);
+            $templateMessageBuilders[] = new TemplateMessageBuilder('Halaman selanjutnya?', $confirmTemplateBuilder);
+        }
+
         return $templateMessageBuilders;
     }
 
