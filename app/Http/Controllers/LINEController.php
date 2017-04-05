@@ -221,9 +221,10 @@ class LINEController extends Controller
         // $messages = $this->getMovieDetailsById('', '', '');
         // $messages = $this->getMovieReviews('tt0101414');
         // $messages = $this->getUpcomingMovies();
-        // $messages = $this->getMovieDetailsByName('Logan');
+        $messages = $this->getMovieDetailsByName('Beast');
         // $messages = $this->getMovieDetailsByName(' ');
-        $messages = $this->getMovieCinema('tt2771200', '');
+        // $messages = $this->getMovieReviews('');
+        // $messages = $this->getMovieCinema('tt2771200', '');
         foreach ($messages as $message) {
             $this->bot->pushMessage('U4927259e833db2ea3b9b8881c00cb786', $message); 
         }
@@ -235,7 +236,12 @@ class LINEController extends Controller
         if($response->status() != 200) {
             return $this->getErrorMessage();
         }
+
         $movies = json_decode($response->getContent());
+        if(isset($movies->error)) {
+            $textMessages = new TextMessageBuilder($movies->error);
+            return [$textMessages];
+        }
 
         $moviesTitle = [];
         $moviesCarouselColumns = [];
@@ -282,7 +288,12 @@ class LINEController extends Controller
         if($response->status() != 200) {
             return $this->getErrorMessage();
         }
+
         $movies = json_decode($response->getContent());
+        if(isset($movies->error)) {
+            $textMessages = new TextMessageBuilder($movies->error);
+            return [$textMessages];
+        }
 
         $moviesTitle = [];
         $moviesCarouselColumns = [];
@@ -475,7 +486,7 @@ class LINEController extends Controller
                 $text .= $schText;
             }
             if(empty($schedule)) {
-                $text .= 'Tidak ada jadwal pada bioskop ini.';
+                $text .= "Tidak ada jadwal pada bioskop ini.\n";
             }
         }
         
