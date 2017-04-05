@@ -81,10 +81,7 @@ class MovieController extends Controller
         }
 
         // Declare variables
-        $dbId = null;
-        $imdbId = null;
-        $state = null;
-        $title = null;
+        $dbId = $imdbId = $state = $title = null;
         $poster = $this->noImageUrl;
         $genre = '-';
         if($detailsDbResponse) {
@@ -191,10 +188,7 @@ class MovieController extends Controller
         }
 
         // Declare variables
-        $dbId = null;
-        $imdbId = null;
-        $state = null;
-        $title = null;
+        $dbId = $imdbId = $state = $title = null;
         $poster = $this->noImageUrl;
         $genre = '-';
         if($detailsDbResponse) {
@@ -229,6 +223,24 @@ class MovieController extends Controller
             ]);
         }
 
+        // Get rating from omdb
+        $client = new Client(['base_uri' => 'http://www.omdbapi.com']);
+        $omdbResponse = $client->request('GET', '', [
+                'query' => ['i'         => $movieId,
+                            'tomatoes'  => 'true',
+                            'plot'      => 'full'
+                            ]
+            ])->getBody();
+        $ratingResponse = json_decode($omdbResponse);
+
+        $imdbRating = null;
+        $ratings = [];
+        if ($ratingResponse && ($ratingResponse->Response != 'False')) {
+            $imdbRating = $ratingResponse->imdbRating;
+            $ratings = $ratingResponse->Ratings;
+        }
+
+        // Get reviews
         $find = $this->client->getFindApi()->findBy($movieId, [
             'external_source' => 'imdb_id'
         ]);
@@ -255,7 +267,11 @@ class MovieController extends Controller
             ];
             array_push($reviews, $review);
         }
-        return response()->json($reviews);
+        return response()->json([
+            'imdb_rating'   => $imdbRating,
+            'ratings'       => $ratings,
+            'review'       => $reviews
+        ]);
     }
 
     public function getCinema($dbId) {
@@ -286,17 +302,5 @@ class MovieController extends Controller
         }
 
         return response()->json($schedule);
-    }
-
-    // Helper
-    public function getGenreList() {
-        $response = $this->client->getGenresApi()->getMovieGenres();
-        DB::table('movie_genre')->insert($response['genres']);
-        return $response['genres'];
-    }
-
-    public function getGenreName($id) {
-        $genre = DB::table('movie_genre')->find($id);
-        return $genre->name;
     }
 }

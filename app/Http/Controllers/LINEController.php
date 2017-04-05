@@ -252,9 +252,9 @@ class LINEController extends Controller
     }
 
     public function test() {
-        $messages = $this->getMovieDetailsById('tt2771200', 2, 'nowplaying');
+        // $messages = $this->getMovieDetailsById('tt2771200', 2, 'nowplaying');
         // $messages = $this->getMovieDetailsById('', '', '');
-        // $messages = $this->getMovieReviews('tt0101414');
+        $messages = $this->getMovieReviews('tt2771200');
         // $messages = $this->getUpcomingMovies(2);
         // $messages = $this->getMovieDetailsByName('zzzksls');
         // $messages = $this->getMovieDetailsByName(' ');
@@ -485,16 +485,28 @@ class LINEController extends Controller
             return $this->getErrorMessage();
         }
 
-        $reviews = json_decode($response->getContent());
-        if(isset($reviews->error)) {
-            $textMessage = new TextMessageBuilder($reviews->error);
+        $movie = json_decode($response->getContent());
+        if(isset($movie->error)) {
+            $textMessage = new TextMessageBuilder($movie->error);
             return [$textMessage];
         }
 
-        $review = $reviews[0];
-        $text = $review->content . ' (' . $review->url. ')';
+        // Ratings
+        $ratings = ['N/A'];
+        if(isset($movie->imdb_rating)) {
+            $ratings = ['- IMDB ' . $movie->imdb_rating . '/10'];
+        }
+        foreach ($movie->ratings as $rating) {
+            array_push($ratings, '- ' . $rating->Source . ' ' . $rating->Value);
+        }
+        $text = "Rating: \n" . implode("\n", $ratings);
+        $ratingsTextMessage = new TextMessageBuilder($text);
+
+        // Reviews
+        $review = $movie->review[0];
+        $text = "Review: \n" . $review->content . ' (' . $review->url. ')';
         $start = 0;
-        $textMessages = [];
+        $textMessages = [$ratingsTextMessage];
         while($start < strlen($text)) {
             $cutText = substr($text, $start, 2000);
             $textMessage = new TextMessageBuilder($cutText, null);
