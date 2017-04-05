@@ -110,7 +110,7 @@ class LINEController extends Controller
                                 } else if ($feature == 'resto') {
                                     switch ($featureMenu) {
                                         case 'location':
-                                            $messages = $this->getRestaurantsByLocationQuery($text);
+                                            $messages = $this->getRestaurantsByLocationQuery($text, 1);
                                             $stateRedis->delete();
                                             break;
                                         case 'name':
@@ -130,7 +130,7 @@ class LINEController extends Controller
                                         if ($restaurantName) {
                                             $messages = $this->getRestaurantsByQuery($restaurantName);
                                         } else if ($location) {
-                                            $messages = $this->getRestaurantsByLocationQuery($location);
+                                            $messages = $this->getRestaurantsByLocationQuery($location, 1);
                                         } else {
                                             $messages = $this->getErrorMessage();
                                         }
@@ -197,6 +197,9 @@ class LINEController extends Controller
                                 switch ($query['feature']) {
                                     case 'nearby':
                                         $messages = $this->getNearbyRestaurants($query['lat'], $query['long'], $query['page']);
+                                        break;
+                                    case 'location':
+                                        $messages = $this->getRestaurantsByLocationQuery($query['location'], $query['page']);
                                         break;
                                     case 'stop':
                                         $messages = $this->getStopNextPageMessage();
@@ -578,7 +581,7 @@ class LINEController extends Controller
         return $templateMessageBuilders;
     }
 
-    private function getRestaurantsByLocationQuery($query) {
+    private function getRestaurantsByLocationQuery($query, $page) {
         $restaurantController = new RestaurantController;
         $response = $restaurantController->getByLocationQuery($query);
         if ($response->status() != 200) {
@@ -587,8 +590,14 @@ class LINEController extends Controller
         $restaurants = json_decode($response->getContent());
 
         $carouselColumnTemplateBuilders = [];
-        $templateMessageBuilders = [];
-        foreach ($restaurants->restaurants as $restaurant) {
+        $numRestaurants = sizeof($restaurants->restaurants);
+        for ($i = 0; $i < 5; $i++) {
+            $index = $i + ($page - 1) * 5;
+            if ($index >= $numRestaurants) {
+                break;
+            }
+            $restaurant = $restaurants->restaurants[$index];
+
             $templateActionBuilders = [
                 new PostbackTemplateActionBuilder(
                     'Lokasi',
@@ -627,21 +636,28 @@ class LINEController extends Controller
             );
 
             $carouselColumnTemplateBuilders[] = $carouselColumnTemplateBuilder;
-            if (sizeof($carouselColumnTemplateBuilders) == 5) {
-                $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
-                $templateMessageBuilders[] = new TemplateMessageBuilder('Restoran di ' . $query, $carouselTemplateBuilder);
-                $carouselColumnTemplateBuilders = [];
-            }
         }
 
-        if (sizeof($carouselColumnTemplateBuilders) > 0 && sizeof($carouselColumnTemplateBuilders) < 5) {
+        if (sizeof($carouselColumnTemplateBuilders) > 0) {
             $carouselTemplateBuilder = new CarouselTemplateBuilder($carouselColumnTemplateBuilders);
-            $templateMessageBuilders[] = new TemplateMessageBuilder('Restoran di ' . $query, $carouselTemplateBuilder);
-        }
-
-        if (empty($templateMessageBuilders)) {
+            $templateMessageBuilders = [new TemplateMessageBuilder('Restoran di ' . $query, $carouselTemplateBuilder)];
+        } else {
             return $this->getEmptyRestaurantsMessage();
         }
+
+        if ($numRestaurants > ($page * 5)) {
+            $templateActionBuilders = [new PostbackTemplateActionBuilder(
+                'Ya',
+                'type=restaurant&event=page&feature=location&page=' . ($page + 1) . '&location=' . $query
+            )];
+            $templateActionBuilders[] = new PostbackTemplateActionBuilder(
+                'Tidak',
+                'type=restaurant&event=page&feature=stop'
+            );
+            $confirmTemplateBuilder = new ConfirmTemplateBuilder('Halaman selanjutnya?', $templateActionBuilders);
+            $templateMessageBuilders[] = new TemplateMessageBuilder('Halaman selanjutnya?', $confirmTemplateBuilder);
+        }
+
         return $templateMessageBuilders;
     }
 
