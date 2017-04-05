@@ -111,8 +111,11 @@ class MovieController extends Controller
 
     public function getDetailsById($imdbId, $dbId, $state) {
         // Retrieve movie from database
-        $dbController = new DatabaseController;
-        $detailsDbResponse = $dbController->getDetailsById($dbId, $state);
+        $detailsDbResponse = null;
+        if ($dbId) {
+            $dbController = new DatabaseController;
+            $detailsDbResponse = $dbController->getDetailsById($dbId, $state);
+        }
 
         // Search movie from omdb
         $client = new Client(['base_uri' => 'http://www.omdbapi.com']);
