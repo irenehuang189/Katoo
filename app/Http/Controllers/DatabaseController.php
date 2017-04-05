@@ -20,27 +20,29 @@ class DatabaseController extends Controller
         return $result;
     }
 
-    public function getDetailsById(int $dbId, string $state) {
+    public function getDetailsById($dbId, $state) {
         $table = ($state == 'upcoming') ? 'upcoming_infos' : 'now_playing_infos';
-        $result = DB::table($table)->where('id', $dbId)->get();
+        $result = DB::table($table)->where('id', $dbId)->first();
         return $result;
     }
 
-    public function getDetailsByName(string $movieName) {
-        $result = DB::table('now_playing_infos')->where('name', $movieName)->first();
+    public function getDetailsByName($movieName) {
+        $result = DB::table('now_playing_infos')->where('name', 'like', '%'.$movieName.'%')->first();
         if($result) {
             $result = (object) array_merge((array)$result, ['state' => 'nowplaying']);
         } else {
-            $result = DB::table('upcoming_infos')->where('name', $movieName)->first();
-            $result = (object) array_merge((array)$result, ['state' => 'upcoming']);
+            $result = DB::table('upcoming_infos')->where('name', 'like', '%'.$movieName.'%')->first();
+            if($result) {
+                $result = (object) array_merge((array)$result, ['state' => 'upcoming']);
+            }
         }
         
         return $result;
     }
 
-    public function getCinema(int $dbId) {
+    public function getCinema($dbId) {
         $info = DB::table('now_playing_infos')->where('id', $dbId)->select('name')->first();
-        if(!$info->name) {
+        if(!isset($info->name)) {
             return null;
         }
 
@@ -48,7 +50,7 @@ class DatabaseController extends Controller
         return $this->categorizeCinemaToCity($result);
     }
 
-    public function getSchedule(int $dbId, string $city) {
+    public function getSchedule($dbId, $city) {
         $info = DB::table('now_playing_infos')->where('id', $dbId)->select('name')->first();
         if(!$info->name){
             return null;

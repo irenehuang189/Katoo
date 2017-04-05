@@ -221,9 +221,12 @@ class LINEController extends Controller
 
     public function test() {
         // $messages = $this->getMovieDetailsById('tt2771200', 2, 'nowplaying');
+        // $messages = $this->getMovieDetailsById('', '', '');
         // $messages = $this->getMovieReviews('tt0101414');
-        // $messages = $this->getMovieDetailsByName('Danur');
-        $messages = $this->getUpcomingMovies();
+        // $messages = $this->getUpcomingMovies();
+        // $messages = $this->getMovieDetailsByName('Logan');
+        // $messages = $this->getMovieDetailsByName(' ');
+        $messages = $this->getMovieCinema('tt2771200', '');
         foreach ($messages as $message) {
             $this->bot->pushMessage('U4927259e833db2ea3b9b8881c00cb786', $message); 
         }
@@ -250,18 +253,18 @@ class LINEController extends Controller
             $templateAction = [
                 new PostbackTemplateActionBuilder(
                     'Telusuri', 
-                    'type=movie&event=detail&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=nowplaying',
-                    'Telusuri ' . $title
+                    'type=movie&event=detail&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=nowplaying'
+                    // 'Telusuri ' . $title
                 ),
                 new PostbackTemplateActionBuilder(
                     'Review & Rating',
-                    'type=movie&event=review&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=nowplaying',
-                    'Review & rating ' . $title
+                    'type=movie&event=review&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=nowplaying'
+                    // 'Review & rating ' . $title
                 ),
                 new PostbackTemplateActionBuilder(
                     'Info Penayangan',
-                    'type=movie&event=schedule&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=nowplaying',
-                    'Info penayangan ' . $title
+                    'type=movie&event=cinema&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=nowplaying'
+                    // 'Info penayangan ' . $title
                 ),
             ];
 
@@ -297,18 +300,18 @@ class LINEController extends Controller
             $templateAction = [
                 new PostbackTemplateActionBuilder(
                     'Telusuri', 
-                    'type=movie&event=detail&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=upcoming',
-                    'Telusuri ' . $title
+                    'type=movie&event=detail&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=upcoming'
+                    // 'Telusuri ' . $title
                 ),
                 new PostbackTemplateActionBuilder(
                     'Review & Rating',
-                    'type=movie&event=review&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=upcoming',
-                    'Review & rating ' . $title
+                    'type=movie&event=review&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=upcoming'
+                    // 'Review & rating ' . $title
                 ),
                 new PostbackTemplateActionBuilder(
                     'Info Penayangan',
-                    'type=movie&event=schedule&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=nowplaying',
-                    'Info penayangan ' . $title
+                    'type=movie&event=cinema&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=nowplaying'
+                    // 'Info penayangan ' . $title
                 ),
             ];
 
@@ -329,7 +332,12 @@ class LINEController extends Controller
         if($response->status() != 200) {
             return $this->getErrorMessage();
         }
+
         $movie = json_decode($response->getContent());
+        if(isset($movie->error)) {
+            $textMessages = new TextMessageBuilder($movie->error);
+            return [$textMessages];
+        }
 
         $identity = [
             'Judul: ' . $movie->title,
@@ -337,7 +345,11 @@ class LINEController extends Controller
             'Duration: ' . $movie->duration,
             'Rating: '
         ];
-        $ratings = ['- IMDB ' . $movie->imdb_rating . '/10'];
+
+        $ratings = ['N/A'];
+        if(isset($movie->imdb_rating)) {
+            $ratings = ['- IMDB ' . $movie->imdb_rating . '/10'];
+        }
         foreach ($movie->ratings as $rating) {
             array_push($ratings, '- ' . $rating->Source . ' ' . $rating->Value);
         }
@@ -368,18 +380,18 @@ class LINEController extends Controller
         $templateAction = [
             new PostbackTemplateActionBuilder(
                 'Telusuri', 
-                'type=movie&event=detail&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=' . $movie->state,
-                'Telusuri ' . $title
+                'type=movie&event=detail&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=' . $movie->state
+                // 'Telusuri ' . $title
             ),
             new PostbackTemplateActionBuilder(
                 'Review & Rating',
-                'type=movie&event=review&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=' . $movie->state,
-                'Review & rating ' . $title
+                'type=movie&event=review&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=' . $movie->state
+                // 'Review & rating ' . $title
             ),
             new PostbackTemplateActionBuilder(
                 'Info Penayangan',
-                'type=movie&event=schedule&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=' . $movie->state,
-                'Info penayangan ' . $title
+                'type=movie&event=cinema&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=' . $movie->state
+                // 'Info penayangan ' . $title
             ),
         ]; 
 
@@ -422,15 +434,20 @@ class LINEController extends Controller
         if($response->status() != 200) {
             return $this->getErrorMessage();
         }
+
         $cinema = json_decode($response->getContent());
+        if(isset($cinema->error)) {
+            $textMessage = new TextMessageBuilder($cinema->error);
+            return [$textMessage];
+        }
 
         $templateAction = [];
         $end = sizeof($cinema) < 4 ? sizeof($cinema) : 4; // TODO: Looping until all cinemas has been send
         for ($i=0; $i<$end; $i++) { 
             array_push($templateAction, new PostbackTemplateActionBuilder(
                 $cinema[$i],
-                'type=movie&event=schedule&imdb_id=' . $imdbId . '&db_id=' . $dbId . '&city=' . $cinema[$i],
-                'Jadwal penayangan di ' . $cinema[$i]
+                'type=movie&event=schedule&imdb_id=' . $imdbId . '&db_id=' . $dbId . '&city=' . $cinema[$i]
+                // 'Jadwal penayangan di ' . $cinema[$i]
             ));
         }
         $buttonTemplate = new ButtonTemplateBuilder(null, 'Di mana kamu ingin menonton?', null, $templateAction);
@@ -446,8 +463,8 @@ class LINEController extends Controller
         if($response->status() != 200) {
             return $this->getErrorMessage();
         }
-        $schedules = json_decode($response->getContent());
 
+        $schedules = json_decode($response->getContent());
         if(isset($schedules->error)) {
             $textMessages = new TextMessageBuilder($schedules->error);
             return [$textMessages];
@@ -455,7 +472,7 @@ class LINEController extends Controller
 
         $text = "JADWAL HARI INI\n";
         foreach ($schedules as $cinema => $schedule) {
-            $text .= $cinema . "\n";
+            $text .= "\n" . $cinema . "\n";
             foreach ($schedule as $sch) {
                 $schText = $sch->auditype . ' (Rp' . $sch->price . ') - ' . $sch->showtime . "\n";
                 $text .= $schText;
@@ -463,7 +480,6 @@ class LINEController extends Controller
             if(empty($schedule)) {
                 $text .= 'Tidak ada jadwal pada bioskop ini.';
             }
-            $text .= "\n";
         }
         
         $textMessages = new TextMessageBuilder($text);
