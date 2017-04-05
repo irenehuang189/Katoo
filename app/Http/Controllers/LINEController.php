@@ -191,7 +191,7 @@ class LINEController extends Controller
                                 $messages = $this->getLocation($query['lat'], $query['long'], $query['name'], $query['address']);
                                 break;
                             case 'review':
-                                $messages = $this->getRestaurantReviews($query['id']);
+                                $messages = $this->getRestaurantReviews($query['id'], $query['name']);
                                 break;
                             case 'page':
                                 switch ($query['feature']) {
@@ -499,7 +499,7 @@ class LINEController extends Controller
         return $locationMessageBuilders;
     }
 
-    private function getRestaurantReviews($id) {
+    private function getRestaurantReviews($id, $name) {
         $restaurantController = new RestaurantController;
         $response = $restaurantController->getReviews($id);
         if ($response->status() != 200) {
@@ -507,10 +507,10 @@ class LINEController extends Controller
         }
         $reviews = json_decode($response->getContent());
 
-        $textMessageBuilders = [];
+        $textMessageBuilders = [new TextMessageBuilder('Ulasan ' . $name)];
         foreach ($reviews->user_reviews as $review) {
-            $reviewMessage = $review->rating . '/5';
-            $reviewMessage .= "\n" . $review->review_text;
+            $reviewMessage = "Rating: " . $review->rating . '/5';
+            $reviewMessage .= "\n\nUlasan:\n" . $review->review_text;
             $textMessageBuilders[] = new TextMessageBuilder($reviewMessage);
         }
 
@@ -545,7 +545,7 @@ class LINEController extends Controller
                 new UriTemplateActionBuilder('Menu', $restaurant->menu_url),
                 new PostbackTemplateActionBuilder(
                     'Ulasan',
-                    'type=restaurant&event=review&id=' . $restaurant->id
+                    'type=restaurant&event=review&id=' . $restaurant->id . '&name=' . $restaurant->name
                 )
             ];
 
@@ -625,7 +625,7 @@ class LINEController extends Controller
                 new UriTemplateActionBuilder('Menu', $restaurant->menu_url),
                 new PostbackTemplateActionBuilder(
                     'Ulasan',
-                    'type=restaurant&event=review&id=' . $restaurant->id
+                    'type=restaurant&event=review&id=' . $restaurant->id . '&name=' . $restaurant->name
                 )
             ];
 
@@ -705,7 +705,7 @@ class LINEController extends Controller
                 new UriTemplateActionBuilder('Menu', $restaurant->menu_url),
                 new PostbackTemplateActionBuilder(
                     'Ulasan',
-                    'type=restaurant&event=review&id=' . $restaurant->id
+                    'type=restaurant&event=review&id=' . $restaurant->i
                 )
             ];
 
