@@ -23,6 +23,11 @@ class MovieController extends Controller
     public function getNowPlaying($pageNum) {
         $dbController = new DatabaseController;
         $cinemaNowPlaying = $dbController->getTitleOfNowPlayingMovies(5*($pageNum-1), 5*$pageNum);
+        if(!count($cinemaNowPlaying)) {
+            return response()->json([
+                'error' => 'Semua film yang sedang tayang sudah ditampilkan. Kamu memang cari film apa?'
+            ]);
+        }
 
         $movies = [];
         foreach($cinemaNowPlaying as $movie) {
@@ -38,6 +43,11 @@ class MovieController extends Controller
     public function getUpcoming($pageNum) {
         $dbController = new DatabaseController;
         $cinemaUpcoming = $dbController->getTitleOfUpcomingMovies(5*($pageNum-1), 5*$pageNum);
+        if(!count($cinemaUpcoming)) {
+            return response()->json([
+                'error' => 'Semua film yang akan tayang sudah ditampilkan. Film yang kamu cari masih belum keluar di Indonesia kali ya?'
+            ]);
+        }
 
         $movies = [];
         foreach($cinemaUpcoming as $movie) {
@@ -64,9 +74,9 @@ class MovieController extends Controller
         $omdbResponse = $client->request('GET', '?' . $query)->getBody();
         $detailsResponse = json_decode($omdbResponse);
 
-        if(!$detailsDbResponse && !$detailsResponse) { // imdb gaada, db gaada
+        if(!$detailsDbResponse && ($detailsResponse->Response == 'False')) {
             return response()->json([
-                'error' => 'Nama film tidak ditemukan. Apakah kamu yakin itu judul film yang benar?'
+                'error' => 'Nama filmnya tidak ketemu. Coba film yang lainnya deh, aku pasti tau ;)'
             ]);
         }
 
@@ -163,7 +173,7 @@ class MovieController extends Controller
         $omdbResponse = $client->request('GET', '?' . $query)->getBody();
         $detailsResponse = json_decode($omdbResponse);
 
-        if(!$detailsDbResponse && !$detailsResponse) {
+        if(!$detailsDbResponse && ($detailsResponse->Response == 'False')) {
             return response()->json([
                 'error' => 'Nama film tidak ditemukan. Apakah kamu yakin itu judul film yang benar?'
             ]);
@@ -240,7 +250,7 @@ class MovieController extends Controller
     public function getCinema($dbId) {
         if(!$dbId) { // Avoid error on heroku
             return response()->json([
-                'error' => 'Maaf, belum ada penayangan film ini di hari ini :('
+                'error' => 'Maaf, hari ini belum ada penayangan film ini. Nonton yang lain aja yuk!'
             ]);
         }
 
@@ -248,7 +258,7 @@ class MovieController extends Controller
         $cinema = $dbController->getCinema($dbId);
         if(!$cinema) {
             return response()->json([
-                'error' => 'Maaf, belum ada penayangan film ini di hari ini :('
+                'error' => 'Maaf, hari ini belum ada penayangan film ini. Nonton yang lain aja yuk!'
             ]);
         }
 
@@ -260,7 +270,7 @@ class MovieController extends Controller
         $schedule = $dbController->getSchedule($dbId, $city);
         if(!$schedule) {
             return response()->json([
-                'error' => 'Maaf, belum ada penayangan film ini di hari ini :('
+                'error' => 'Maaf, hari ini filmnya ga tayang. Nonton yang lain aja yuk!'
             ]);
         }
 

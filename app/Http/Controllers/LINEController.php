@@ -67,14 +67,14 @@ class LINEController extends Controller
                     $text = strtolower($event->getText());
                     switch ($text) {
                         case "tampilkan film yang sedang tayang":
-                            $messages = $this->getNowPlayingMovies();
+                            $messages = $this->getNowPlayingMovies(1);
                             $redis = Redis::where('key', 'source:' . $sourceId)->first();
                             if ($redis) {
                                 $redis->delete();
                             }
                             break;
                         case "tampilkan film yang akan tayang":
-                            $messages = $this->getUpcomingMovies();
+                            $messages = $this->getUpcomingMovies(1);
                             $redis = Redis::where('key', 'source:' . $sourceId)->first();
                             if ($redis) {
                                 $redis->delete();
@@ -171,6 +171,22 @@ class LINEController extends Controller
                 switch ($query['type']) {
                     case 'movie':
                         switch ($query['event']) {
+                            case 'nowplaying':
+                                $page = $query['page'];
+                                if($page != -1) {
+                                    $messages = $this->getNowPlayingMovies($page);
+                                } else {
+                                    $messages = $this->getStopNextPageMessage();
+                                }
+                                break;
+                            case 'upcoming':
+                                $page = $query['page'];
+                                if($page != -1) {
+                                    $messages = $this->getUpcomingMovies($page);
+                                } else {
+                                    $messages = $this->getStopNextPageMessage();
+                                }
+                                break;
                             case 'detail':
                                 $imdbId = $query['imdb_id'];
                                 $dbId = $query['db_id'];
@@ -238,19 +254,20 @@ class LINEController extends Controller
         // $messages = $this->getMovieDetailsById('tt2771200', 2, 'nowplaying');
         // $messages = $this->getMovieDetailsById('', '', '');
         // $messages = $this->getMovieReviews('tt0101414');
-        // $messages = $this->getUpcomingMovies();
-        // $messages = $this->getMovieDetailsByName('Beast');
+        $messages = $this->getUpcomingMovies(2);
+        // $messages = $this->getMovieDetailsByName('zzzksls');
         // $messages = $this->getMovieDetailsByName(' ');
         // $messages = $this->getMovieReviews('');
-        $messages = $this->getMovieCinema('tt5882416', '');
+        // $messages = $this->getMovieCinema('tt5882416', '');
+        // $messages = $this->getNowPlayingMovies(3);
         foreach ($messages as $message) {
             $this->bot->pushMessage('U4927259e833db2ea3b9b8881c00cb786', $message); 
         }
     }
 
-    public function getNowPlayingMovies() {
+    public function getNowPlayingMovies($page) {
         $movieController = new MovieController;
-        $response = $movieController->getNowPlaying(1); // TODO: call stored page in redis
+        $response = $movieController->getNowPlaying($page); // TODO: call stored page in redis
         if($response->status() != 200) {
             return $this->getErrorMessage();
         }
@@ -261,6 +278,7 @@ class LINEController extends Controller
             return [$textMessages];
         }
 
+        // Movie carousel
         $moviesTitle = [];
         $moviesCarouselColumns = [];
         foreach ($movies as $movie) {
@@ -297,12 +315,23 @@ class LINEController extends Controller
         $altText = implode(', ', $moviesTitle);
         $altText = $this->getLimitedText($altText, 400);
         $moviesTemplateMessage = new TemplateMessageBuilder($altText, $moviesCarousel);
+
+        // Next page confirmation
+        if(sizeof($movies) >= 5) {
+            $templateAction = [
+                new PostbackTemplateActionBuilder('Ya', 'type=movie&event=nowplaying&page=' . ($page+1)),
+                new PostbackTemplateActionBuilder('Tidak', 'type=movie&event=nowplaying&page=-1')
+            ];
+            $confirmTemplate = new ConfirmTemplateBuilder('Halaman selanjutnya?', $templateAction);
+            $confirmTemplateMessage = new TemplateMessageBuilder('Lihat film yang sedang tayang pada halaman selanjutnya?', $confirmTemplate);
+            return [$moviesTemplateMessage, $confirmTemplateMessage];
+        }
         return [$moviesTemplateMessage];
     }
 
-    public function getUpcomingMovies() {
+    public function getUpcomingMovies($page) {
         $movieController = new MovieController;
-        $response = $movieController->getUpcoming(1); // TODO: call stored page in redis
+        $response = $movieController->getUpcoming($page); // TODO: call stored page in redis
         if($response->status() != 200) {
             return $this->getErrorMessage();
         }
@@ -336,7 +365,7 @@ class LINEController extends Controller
                 ),
                 new PostbackTemplateActionBuilder(
                     'Info Penayangan',
-                    'type=movie&event=cinema&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=nowplaying'
+                    'type=movie&event=cinema&imdb_id=' . $movie->imdb_id . '&db_id=' . $movie->db_id . '&state=upcoming'
                     // 'Info penayangan ' . $title
                 ),
             ];
@@ -349,7 +378,18 @@ class LINEController extends Controller
         $altText = implode(', ', $moviesTitle);
         $altText = $this->getLimitedText($altText, 400);
         $moviesTemplateMessage = new TemplateMessageBuilder($altText, $moviesCarousel);
-        return [$moviesTemplateMessage];
+
+        // Next page confirmation
+        if (sizeof($movies) >= 5) {
+            $templateAction = [
+                new PostbackTemplateActionBuilder('Ya', 'type=movie&event=upcoming&page=' . ($page+1)),
+                new PostbackTemplateActionBuilder('Tidak', 'type=movie&event=upcoming&page=-1')
+            ];
+            $confirmTemplate = new ConfirmTemplateBuilder('Halaman selanjutnya?', $templateAction);
+            $confirmTemplateMessage = new TemplateMessageBuilder('Lihat film yang akan tayang pada halaman selanjutnya?', $confirmTemplate);
+            return [$moviesTemplateMessage, $confirmTemplateMessage];
+        }
+        return $moviesTemplateMessage;
     }
 
     public function getMovieDetailsById($imdbId, $dbId, $state) {
