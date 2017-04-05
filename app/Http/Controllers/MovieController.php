@@ -134,8 +134,8 @@ class MovieController extends Controller
         }
 
         // Declare variables
-        $title = $genre = $duration = $imdbRating = $plot = $video = null;
-        $url = 'N/A';
+        $title = $genre = $duration = $imdbRating = $plot = null;
+        $video = $url = 'N/A';
         $ratings = [];
 
         if($detailsDbResponse) {
