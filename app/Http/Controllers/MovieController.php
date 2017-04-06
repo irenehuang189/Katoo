@@ -89,7 +89,7 @@ class MovieController extends Controller
             $state = $detailsDbResponse->state;
             $title = ucwords(strtolower($detailsDbResponse->name));
             $poster = $detailsDbResponse->poster;
-            $genre = ucwords(strtolower($detailsDbResponse->genre));
+            $genre = $detailsDbResponse->genre ? ucwords(strtolower($detailsDbResponse->genre)): '-';
         }
 
         if($detailsResponse && $detailsResponse->Response != 'False') {
