@@ -165,6 +165,10 @@ class LINEController extends Controller
                     }
                 } else if ($event instanceof LocationMessage) {
                     $messages = $this->getNearbyRestaurants($event->getLatitude(), $event->getLongitude(), 1);
+                    $redis = Redis::where('key', 'source:' . $sourceId)->first();
+                    if ($redis) {
+                        $redis->delete();
+                    }
                 }
             } else if ($event instanceof PostbackEvent) {
                 parse_str($event->getPostbackData(), $query);
