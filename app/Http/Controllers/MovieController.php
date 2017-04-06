@@ -22,7 +22,7 @@ class MovieController extends Controller
 
     public function getNowPlaying($pageNum) {
         $dbController = new DatabaseController;
-        $cinemaNowPlaying = $dbController->getTitleOfNowPlayingMovies(5*($pageNum-1), 5*$pageNum);
+        $cinemaNowPlaying = $dbController->getTitleOfNowPlayingMovies(5*($pageNum-1), 5);
         if(!count($cinemaNowPlaying)) {
             return response()->json([
                 'error' => 'Semua film yang sedang tayang sudah ditampilkan. Kamu memang cari film apa?'
@@ -42,7 +42,7 @@ class MovieController extends Controller
 
     public function getUpcoming($pageNum) {
         $dbController = new DatabaseController;
-        $cinemaUpcoming = $dbController->getTitleOfUpcomingMovies(5*($pageNum-1), 5*$pageNum);
+        $cinemaUpcoming = $dbController->getTitleOfUpcomingMovies(5*($pageNum-1), 5);
         if(!count($cinemaUpcoming)) {
             return response()->json([
                 'error' => 'Semua film yang akan tayang sudah ditampilkan. Film yang kamu cari masih belum keluar di Indonesia kali ya?'
@@ -87,16 +87,16 @@ class MovieController extends Controller
         if($detailsDbResponse) {
             $dbId = $detailsDbResponse->id;
             $state = $detailsDbResponse->state;
-            $title = ucwords(strtolower($detailsDbResponse->name));
-            $poster = $detailsDbResponse->poster;
+            $title = $detailsDbResponse->name ? ucwords(strtolower($detailsDbResponse->name)): 'N/A';
+            $poster = $detailsDbResponse->poster? : $this->noImageUrl;
             $genre = $detailsDbResponse->genre ? ucwords(strtolower($detailsDbResponse->genre)): '-';
         }
 
         if($detailsResponse && $detailsResponse->Response != 'False') {
             $imdbId = $detailsResponse->imdbID;
-            $title = $detailsResponse->Title;
+            $title = $detailsResponse->Title ? : 'N/A';
             $poster = $detailsResponse->Poster != 'N/A' ? $detailsResponse->Poster : $this->noImageUrl;
-            $genre = $detailsResponse->Genre;
+            $genre = $detailsResponse->Genre ? : '-';
         }
 
         return response()->json([
